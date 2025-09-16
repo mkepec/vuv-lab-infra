@@ -1,0 +1,44 @@
+#cloud-config
+
+# Simple SSH fix for testing
+ssh_pwauth: true
+disable_root: true
+
+# Configure ubuntu user properly
+users:
+  - name: ubuntu
+    groups: sudo
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    lock_passwd: false
+    passwd: $6$rounds=4096$salted$hash.test123
+
+# Minimal packages needed
+packages:
+  - openssh-server
+
+# Simple SSH setup
+runcmd:
+  # Set ubuntu password (backup method)
+  - echo 'ubuntu:test123' | chpasswd
+  
+  # Enable SSH service
+  - systemctl enable --now ssh
+  
+  # Enable password authentication for testing
+  - sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+  - sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+  
+  # Disable firewall for testing
+  - systemctl stop ufw || true
+  - systemctl disable ufw || true
+  
+  # Fix SSH permissions
+  - chmod 700 /home/ubuntu/.ssh || true
+  - chmod 600 /home/ubuntu/.ssh/authorized_keys || true
+  - chown -R ubuntu:ubuntu /home/ubuntu/.ssh || true
+  
+  # Restart SSH to apply changes
+  - systemctl restart ssh
+
+final_message: "Simple SSH setup complete - ubuntu/test123 should work"

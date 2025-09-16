@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__task-master-ai__parse_prd",
+      "Bash(mkdir:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(git clone:*)",
+      "Read(//c/temp/terraform-provider-proxmox/docs/resources/**)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Read(//c/temp/terraform-provider-proxmox/**)",
+      "Bash(terraform:*)",
+      "Bash(ssh:*)",
+      "Bash(mv:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "task-master-ai"
+  ]
+}

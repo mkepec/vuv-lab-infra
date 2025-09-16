@@ -1,0 +1,26 @@
+# GNS3 Server Configuration
+# Copy this file to terraform.tfvars and fill in your values
+
+# Proxmox server details
+proxmox_host = "192.168.1.190"         # Your Proxmox server IP
+proxmox_node = "pve"                   # Your Proxmox node name
+
+# API token (from Proxmox setup guide)
+proxmox_api_token = "your-api-token-here"
+
+# VM template (created during Proxmox setup)
+template_name = "ubuntu2404-cloud"
+
+# SSH public key (paste content from ~/.ssh/proxmox_key.pub)
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... your-key-here"
+
+# Network configuration
+network_base = "192.168.1"             # Base network for static IPs
+network_gateway = "192.168.1.1"        # Your network gateway
+
+# GNS3 Server configuration
+gns3_server_count = 1                  # Number of GNS3 servers
+gns3_server_memory = 4096              # Memory for GNS3 servers (MB) - 4GB recommended
+gns3_server_cores = 4                  # CPU cores for GNS3 servers - 4 cores recommended
+
+# Note: GNS3 servers will use IP range 192.168.1.20-29

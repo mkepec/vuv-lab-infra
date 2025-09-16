@@ -1,0 +1,332 @@
+<context>
+# Overview  
+VUV Lab Infrastructure as Code project aims to standardize and automate the setup of a computer laboratory environment for Virovitica University of Applied Sciences. The infrastructure runs on Dell PowerEdge R530 with Proxmox VE hypervisor and demonstrates modern DevOps practices including Infrastructure as Code, GitOps workflows, and automated configuration management. This project serves both operational needs and educational purposes, providing hands-on experience with industry-standard infrastructure tools while enabling seamless handover to university IT staff.
+
+# Core Features  
+## Infrastructure Provisioning with Terraform
+- Automated VM creation and management on Proxmox VE using Terraform
+- Version-controlled infrastructure definitions with .tfvars configuration
+- Support for different VM templates and resource allocations
+- Network configuration and VLAN management for service isolation
+- Storage provisioning and management
+
+## Configuration Management with Ansible  
+- Automated service configuration and application deployment using static inventory initially
+- Idempotent playbooks for consistent system states
+- Role-based configuration for different service types
+- Secrets management and secure credential handling
+- System monitoring and health checks
+
+## Core Services
+- GNS3 Server for network simulation and education
+- DNS services using BIND with version-controlled configuration
+- Reverse proxy using Traefik with SSL/TLS termination
+- Monitoring stack (Prometheus and Grafana) for infrastructure observability
+- Docker Host VMs for containerized services
+- LXC Containers for lightweight virtualization (optional)
+
+# User Experience  
+## Primary Users
+- **University IT Staff**: System administrators who will maintain and operate the infrastructure
+- **DevOps Consultants**: External team implementing and documenting the solution
+- **Students and Faculty**: End users of the laboratory services (indirect)
+
+## Key User Flows
+### Infrastructure Deployment Flow
+1. IT staff clones repository and reviews documentation
+2. Configures environment variables and Proxmox connection details
+3. Runs terraform init, plan, and apply to provision infrastructure
+4. Executes ansible playbooks to configure services
+5. Validates deployment through monitoring dashboards and service health checks
+
+### Service Access Flow
+1. Users access services through Traefik reverse proxy with HTTPS
+2. Services like GNS3 web interface, Grafana dashboards accessible via browser
+3. DNS resolution handled by internal BIND server
+4. Monitoring provides visibility into service health and performance
+
+## UI/UX Considerations
+- HTTPS access to all web-based services through Traefik with self-signed certificates
+- Proxmox web interface for VM management and monitoring
+- Grafana dashboards for infrastructure monitoring and alerting
+- Comprehensive documentation with step-by-step procedures
+</context>
+
+<PRD>
+# Technical Architecture  
+## System Components
+### Hypervisor Layer
+- Proxmox VE 9 running on Dell PowerEdge R530 (Intel Xeon E5-2620 v3, 24 cores, 64GB RAM)
+- Standard storage configuration (no ZFS requirements)
+- VLAN-based network isolation for different service types
+- Proxmox API integration for terraform provider communication
+
+### Infrastructure as Code Layer
+- Terraform >= 1.5 with Proxmox provider for VM provisioning
+- Terraform state management (local backend initially)
+- Resource definitions for VMs, networks, and storage
+- Environment-specific variable files (.tfvars)
+
+### Configuration Management Layer
+- Ansible >= 2.15 for service configuration and application deployment
+- Static Ansible inventory management initially (dynamic inventory optional for later)
+- Role-based playbook organization for different service types
+- Ansible Vault for secrets management
+
+### Service Layer
+- Ubuntu 22.04 LTS VMs as primary compute platform
+- BIND DNS server with version-controlled configuration
+- Traefik reverse proxy with SSL/TLS termination using self-signed certificates
+- Prometheus and Grafana monitoring stack
+- GNS3 Server for network simulation
+- Docker Engine for containerized applications
+
+## Data Models
+### Terraform Resource Models
+- VM resources with CPU, memory, disk, and network specifications
+- Cloud-init configurations for initial system setup
+- Network resources for VLAN management and service isolation
+- Storage resources for VM disk provisioning
+
+### Ansible Inventory Models
+- Static host inventory organized by service type
+- Host variables for service-specific configurations
+- Group variables for shared configurations
+- Optional dynamic inventory from Proxmox API for future enhancement
+
+### Service Configuration Models
+- BIND DNS zone files and configuration stored in Git repository
+- Traefik configuration with service discovery and SSL certificate management
+- Prometheus configuration with service discovery and alerting rules
+- GNS3 server configuration with project directories and user management
+- Docker daemon configuration with registry and network settings
+
+## APIs and Integrations
+### Proxmox VE API
+- VM lifecycle management (create, start, stop, delete)
+- Template management and cloud-init integration
+- VLAN configuration and network assignment
+- Storage management and basic backup operations
+
+### Service Integrations
+- Traefik service discovery for automatic service routing
+- Prometheus metrics collection from all infrastructure components
+- BIND DNS updates through Ansible configuration management
+- Git repository for version control and configuration storage
+
+## Infrastructure Requirements
+### Hardware Requirements
+- Dell PowerEdge R530 with Proxmox VE 9 installed
+- 64GB RAM for VM operations
+- Sufficient storage for VM images and basic backups
+- Network connectivity to university infrastructure
+
+### Software Requirements
+- Terraform binary on management workstation
+- Ansible installation with required collections
+- Git for version control and collaboration
+- SSH access to Proxmox host and provisioned VMs
+
+### Network Requirements
+- Administrative network access to Proxmox web interface
+- SSH connectivity to Proxmox host (port 22)
+- Internet connectivity for package downloads and updates
+- VLAN configuration capability for service isolation
+
+# Development Roadmap  
+## Phase 1: Foundation Infrastructure (MVP)
+### Core Terraform Setup
+- Initialize Terraform configuration with Proxmox provider
+- Create basic VM resource definitions with Ubuntu 22.04 template
+- Implement cloud-init configuration for initial system setup
+- Configure terraform.tfvars for environment-specific settings
+- Implement VLAN-based network isolation for services
+- Test VM provisioning and lifecycle management
+
+### Basic Ansible Integration
+- Create static Ansible inventory for VM management
+- Develop basic playbooks for system configuration
+- Implement SSH key management and user setup
+- Configure basic security hardening and system updates
+- Test configuration management on provisioned VMs
+
+### Documentation and Procedures
+- Create operational documentation for deployment procedures
+- Document troubleshooting procedures and common issues
+- Establish Git workflow and branching strategy
+- Create basic backup procedures using Proxmox built-in tools
+
+## Phase 2: Core Services Implementation
+### DNS Infrastructure
+- Deploy BIND DNS server VM using Terraform
+- Create Ansible playbook for BIND installation and configuration
+- Implement version-controlled DNS zone files in Git repository
+- Configure internal DNS resolution for lab services
+- Test DNS resolution and zone file updates through Ansible
+
+### GNS3 Server Deployment
+- Create dedicated Ubuntu VM for GNS3 server using Terraform
+- Develop Ansible playbook for GNS3 server installation and configuration
+- Configure GNS3 server with appropriate user management and project directories
+- Implement network configuration for GNS3 lab connectivity
+- Test GNS3 server functionality and client connectivity
+
+### Reverse Proxy Implementation
+- Deploy Traefik reverse proxy VM using Terraform
+- Configure Traefik with Ansible for service discovery and routing
+- Implement SSL/TLS termination with self-signed certificates
+- Configure HTTPS access for GNS3 web interface and future services
+- Test secure service access through reverse proxy
+
+## Phase 3: Monitoring and Docker Services
+### Monitoring Stack Deployment
+- Deploy Prometheus server VM for metrics collection
+- Deploy Grafana server VM for visualization and dashboards
+- Configure Prometheus to monitor all Proxmox infrastructure and VMs
+- Create Grafana dashboards for infrastructure monitoring
+- Implement alerting rules for critical system events
+- Document procedures for adding new services to monitoring
+
+### Docker Host Implementation
+- Provision Docker host VMs using Terraform
+- Configure Docker Engine with Ansible playbooks
+- Integrate Docker hosts with Traefik for container service routing
+- Deploy basic containerized services with HTTPS access
+- Configure monitoring for Docker services and containers
+
+### Service Integration
+- Integrate all services with DNS for proper name resolution
+- Configure service routing through Traefik reverse proxy
+- Implement comprehensive monitoring for all deployed services
+- Create service health checks and availability monitoring
+- Document service addition procedures and templates
+
+## Phase 4: Production Readiness and Future Enhancements
+### Operational Procedures
+- Implement automated backup procedures using Proxmox capabilities
+- Document disaster recovery procedures and testing
+- Establish change management and deployment automation
+- Create comprehensive service management documentation
+
+### Knowledge Transfer and Documentation
+- Create comprehensive operational runbooks
+- Develop training materials for university IT staff
+- Conduct hands-on training sessions
+- Establish ongoing support procedures and contacts
+
+### Future Enhancement Framework
+- Document procedures for adding new services and VMs
+- Create templates for common service deployments with monitoring integration
+- Plan for dynamic Ansible inventory implementation
+- Establish capacity planning and resource management procedures
+- Document migration path to two-node HA setup when hardware becomes available
+- Plan for external NAS integration for enhanced backup capabilities
+
+# Logical Dependency Chain
+## Foundation Dependencies (Phase 1)
+1. **Proxmox Host Setup** - Proxmox VE must be installed and configured with VLAN support
+2. **Network Connectivity** - Administrative access and SSH connectivity must be established
+3. **Terraform Provider Setup** - Proxmox terraform provider must be configured and tested
+4. **Base VM Template** - Ubuntu 22.04 template must be created and configured in Proxmox
+5. **VLAN Configuration** - Network isolation must be configured before service deployment
+6. **Basic VM Provisioning** - Core terraform functionality must work before service VMs
+
+## Core Services Dependencies (Phase 2)
+7. **SSH Key Management** - Automated SSH key deployment must work before Ansible configuration
+8. **Ansible Connectivity** - Static inventory and SSH connectivity must be established
+9. **DNS Infrastructure** - BIND server must be deployed before other services for name resolution
+10. **Reverse Proxy Setup** - Traefik must be configured before HTTPS service access
+11. **GNS3 VM Provisioning** - Terraform must successfully create GNS3 VM before configuration
+12. **Service SSL Configuration** - SSL certificates must be generated before secure service access
+
+## Monitoring Dependencies (Phase 3)
+13. **Prometheus Deployment** - Monitoring server must be ready before service monitoring
+14. **Grafana Setup** - Visualization platform must be configured before dashboard creation
+15. **Service Discovery Configuration** - All services must be discoverable by monitoring and proxy
+16. **Docker Host Setup** - Container platform must be ready before containerized services
+17. **Container Service Routing** - Traefik must be configured for container service access
+
+## Integration Dependencies (Phase 4)
+18. **Service Health Monitoring** - All services must have health checks before production use
+19. **Backup Procedures** - Data protection must be in place before full production deployment
+20. **Documentation Completion** - All procedures must be documented before handover
+21. **Training Completion** - IT staff must be trained before independent operation
+
+# Risks and Mitigations  
+## Technical Challenges
+### Single Node Infrastructure Risk
+- **Risk**: Single Proxmox server represents single point of failure
+- **Mitigation**: Implement comprehensive backup procedures, monitor hardware health, document recovery procedures, plan for future HA setup when additional hardware becomes available
+
+### SSL Certificate Management Risk
+- **Risk**: Self-signed certificates may cause browser warnings and trust issues
+- **Mitigation**: Document certificate installation procedures, plan for proper CA integration in future, use consistent certificate generation procedures
+
+### Service Discovery Complexity Risk
+- **Risk**: Manual service registration may cause configuration drift
+- **Mitigation**: Use version-controlled configuration files, implement configuration validation, document service addition procedures
+
+## Operational Challenges
+### Knowledge Transfer Risk
+- **Risk**: University IT staff may have limited experience with DevOps tools
+- **Mitigation**: Comprehensive training program, extensive documentation, gradual handover process, ongoing support agreement
+
+### Network Configuration Risk
+- **Risk**: VLAN misconfiguration may cause service connectivity issues
+- **Mitigation**: Implement network changes incrementally, maintain network diagrams, use simple VLAN configurations initially
+
+### Monitoring Complexity Risk
+- **Risk**: Complex monitoring setup may be difficult to maintain
+- **Mitigation**: Start with basic monitoring, provide clear documentation for adding new services, use standard monitoring patterns
+
+## Project Management Risks
+### Scope Management Risk
+- **Risk**: Additional service requests may delay core deliverables
+- **Mitigation**: Clearly define MVP scope, document future enhancements separately, maintain change control process
+
+### Hardware Limitation Risk
+- **Risk**: Single server may limit service expansion capabilities
+- **Mitigation**: Monitor resource usage, implement efficient resource allocation, plan for future hardware expansion
+
+### Backup and Recovery Risk
+- **Risk**: Limited backup infrastructure may result in data loss
+- **Mitigation**: Use Proxmox built-in backup capabilities, implement configuration versioning, plan for external backup integration
+
+# Appendix  
+## Technical Specifications
+### VM Resource Allocations
+- **DNS Server (BIND)**: 1GB RAM, 1 vCPU, 20GB disk, management VLAN
+- **GNS3 Server**: 8GB RAM, 4 vCPUs, 50GB disk, lab network VLAN
+- **Traefik Proxy**: 2GB RAM, 1 vCPU, 20GB disk, management VLAN
+- **Prometheus**: 4GB RAM, 2 vCPUs, 30GB disk, monitoring VLAN
+- **Grafana**: 2GB RAM, 1 vCPU, 20GB disk, monitoring VLAN
+- **Docker Hosts**: 4GB RAM, 2 vCPUs, 30GB disk, service VLAN
+- **Total Resource Usage**: ~29GB RAM, ~15 vCPUs (within hardware limits)
+
+### Network Architecture
+- **Management VLAN (100)**: Infrastructure services (DNS, Traefik, monitoring)
+- **Service VLAN (200)**: Application services and Docker containers
+- **Lab VLAN (300)**: GNS3 and student lab activities
+- **External Access**: Traefik handles incoming HTTPS requests with proper routing
+
+### Service Ports and Access
+- **Traefik**: 80/443 (HTTP/HTTPS) for reverse proxy
+- **GNS3 Web**: HTTPS through Traefik (internal port 3080)
+- **Grafana**: HTTPS through Traefik (internal port 3000)
+- **Prometheus**: Internal access only (port 9090)
+- **DNS**: Standard DNS ports (53 UDP/TCP)
+
+### Monitoring Integration
+- **Node Exporter**: Deployed on all VMs for system metrics
+- **Proxmox Monitoring**: Direct integration with Prometheus
+- **Service Health Checks**: HTTP endpoints for all web services
+- **Documentation**: Procedures for adding new services to monitoring stack
+- **Alerting**: Basic alerts for system resources and service availability
+
+### Future Enhancement Roadmap
+- **Dynamic Inventory**: Ansible dynamic inventory from Proxmox API
+- **High Availability**: Two-node Proxmox cluster when hardware available
+- **External Backup**: NAS integration for comprehensive backup strategy
+- **Certificate Authority**: Proper SSL certificate management with internal CA
+- **Additional Services**: Framework for adding monitoring to new services
+</PRD>

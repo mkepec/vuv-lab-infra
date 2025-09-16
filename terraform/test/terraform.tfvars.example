@@ -1,0 +1,13 @@
+# Proxmox connection settings
+# Copy this file to terraform.tfvars and fill in your values
+proxmox_host = "192.168.1.91"         # Your Proxmox server IP
+proxmox_node = "pve"                  # Your Proxmox node name
+
+# API token (from Proxmox setup guide)
+proxmox_api_token = "your-api-token-secret-here"
+
+# VM template (created during Proxmox setup)
+template_name = "ubuntu2404-cloud"
+
+# SSH public key (paste content from ~/.ssh/proxmox_key.pub)
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... vuv-lab-proxmox"

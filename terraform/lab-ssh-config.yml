@@ -1,0 +1,100 @@
+#cloud-config
+# VUV Lab Infrastructure - SSH Configuration
+# Educational DevOps project demonstrating cloud-init best practices
+
+ssh_pwauth: false
+disable_root: true
+
+# Configure lab user with proper permissions
+users:
+  - name: ubuntu
+    groups: sudo
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+
+# Essential packages for lab environment
+packages:
+  - openssh-server
+  - curl
+  - wget
+  - net-tools
+  - htop
+  - vim
+  - git
+
+# SSH service and security configuration
+runcmd:
+  # Ensure SSH service is enabled and running
+  - systemctl enable --now ssh
+  
+  # Configure SSH for lab environment security
+  - |
+    cat > /etc/ssh/sshd_config.d/99-lab-config.conf << 'EOF'
+    # VUV Lab SSH Configuration
+    PermitRootLogin no
+    PubkeyAuthentication yes
+    PasswordAuthentication no
+    ChallengeResponseAuthentication no
+    
+    # Lab-specific settings
+    AllowUsers ubuntu
+    ClientAliveInterval 300
+    ClientAliveCountMax 2
+    MaxAuthTries 3
+    
+    # Enable X11 forwarding for GUI applications
+    X11Forwarding yes
+    X11DisplayOffset 10
+    EOF
+  
+  # Restart SSH to apply configuration
+  - systemctl restart ssh
+  
+  # Configure firewall for lab environment
+  - ufw --force reset
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow ssh
+  - ufw allow from 10.0.0.0/8
+  - ufw allow from 172.16.0.0/12
+  - ufw allow from 192.168.0.0/16
+  - ufw --force enable
+  
+  # Set proper SSH key permissions
+  - chmod 700 /home/ubuntu/.ssh
+  - chmod 600 /home/ubuntu/.ssh/authorized_keys
+  - chown -R ubuntu:ubuntu /home/ubuntu/.ssh
+
+# Create lab environment marker
+write_files:
+  - path: /etc/motd
+    content: |
+      ==========================================
+      VUV Laboratory Infrastructure
+      Educational DevOps Environment
+      
+      This VM is managed by Infrastructure as Code
+      Terraform + Ansible + Proxmox VE
+      ==========================================
+      
+    permissions: '0644'
+  
+  - path: /home/ubuntu/.profile_lab
+    content: |
+      # VUV Lab Environment Variables
+      export LAB_ENVIRONMENT="VUV_INFRASTRUCTURE"
+      export MANAGED_BY="terraform"
+      alias ll='ls -alF'
+      alias la='ls -A'
+      alias l='ls -CF'
+    permissions: '0644'
+    owner: ubuntu:ubuntu
+
+# System updates and final setup
+package_update: true
+package_upgrade: false
+
+final_message: |
+  VUV Lab VM initialization complete!
+  SSH access should now be available on port 22
+  Connect using: ssh ubuntu@<vm_ip>

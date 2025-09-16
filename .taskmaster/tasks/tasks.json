@@ -1,0 +1,182 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Project Setup & Git Workflow",
+        "description": "Establish the project repository, define Git workflow, and set up the initial documentation structure for the VUV Lab Infrastructure as Code project.",
+        "details": "Create the Git repository, define branching strategy (e.g., main, develop, feature branches), and set up initial documentation templates for deployment procedures, troubleshooting, and project overview.",
+        "testStrategy": "Verify repository creation and structure. Commit initial documentation files. Ensure team members can clone, commit, and push changes following the defined workflow.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "not_started",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Terraform Foundation & Proxmox Integration",
+        "description": "Initialize Terraform configuration with the Proxmox provider, create a base Ubuntu 22.04 VM template, and provision initial VMs with VLAN-based network isolation.",
+        "details": "Run `terraform init` to configure the Proxmox provider. Define a reusable Ubuntu 22.04 VM template in Proxmox. Create Terraform modules/resources for basic VM provisioning, including cloud-init for initial setup. Implement VLAN-based network isolation for different service types as defined in the PRD (Management, Service, Lab VLANs). Configure `terraform.tfvars` for environment-specific settings.",
+        "testStrategy": "Successfully provision and destroy a test VM using Terraform. Verify network connectivity and correct VLAN assignment for the provisioned VM. Confirm that cloud-init scripts execute as expected (e.g., hostname, SSH keys).",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "not_started",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Basic Ansible Configuration Management",
+        "description": "Set up a static Ansible inventory for VM management, develop basic playbooks for system configuration, SSH key management, and initial security hardening.",
+        "details": "Create a static Ansible inventory file (`hosts`) to manage VMs provisioned by Terraform. Develop basic playbooks to perform common tasks such as user setup, SSH key deployment, system updates (`apt update/upgrade`), and essential security hardening (e.g., basic firewall rules, disabling password authentication for SSH).",
+        "testStrategy": "Execute Ansible playbooks on provisioned VMs. Verify that user accounts are created correctly, SSH access works with keys, system packages are updated, and basic security configurations are applied.",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "not_started",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "DNS Infrastructure Deployment (BIND)",
+        "description": "Deploy a dedicated BIND DNS server VM using Terraform and configure it with Ansible, managing DNS zone files under version control.",
+        "details": "Create a Terraform resource definition for the BIND DNS server VM. Develop an Ansible playbook for BIND installation, configuration, and management of DNS zone files (e.g., `lab.vuv.hr`). Ensure zone files are stored in the Git repository for version control.",
+        "testStrategy": "Verify BIND service status on the deployed VM. Perform DNS lookups from other provisioned VMs to confirm internal name resolution. Test updating a zone file via Ansible and verify the changes are reflected.",
+        "priority": "high",
+        "dependencies": [
+          2,
+          3
+        ],
+        "status": "not_started",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "GNS3 Server Deployment",
+        "description": "Provision a dedicated GNS3 server VM using Terraform and configure it using Ansible, including user management and project directories.",
+        "details": "Create a Terraform resource definition for the GNS3 server VM with specified resource allocations (8GB RAM, 4 vCPUs, 50GB disk). Develop an Ansible playbook for GNS3 server installation, configuration of appropriate user management, and setup of project directories. Implement network configuration for GNS3 lab connectivity.",
+        "testStrategy": "Access the GNS3 web interface. Create a simple network topology project within GNS3. Verify client connectivity to the GNS3 server.",
+        "priority": "medium",
+        "dependencies": [
+          2,
+          3,
+          4
+        ],
+        "status": "not_started",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Traefik Reverse Proxy Implementation",
+        "description": "Deploy a Traefik reverse proxy VM, configure it for service discovery, SSL/TLS termination with self-signed certificates, and enable HTTPS access for web services.",
+        "details": "Create a Terraform resource definition for the Traefik reverse proxy VM. Develop an Ansible playbook for Traefik installation and configuration, including service discovery mechanisms. Implement SSL/TLS termination using self-signed certificates. Configure HTTPS access for services like the GNS3 web interface and other future web-based services.",
+        "testStrategy": "Access the GNS3 web interface via the Traefik HTTPS endpoint. Verify that SSL/TLS termination is working correctly and the self-signed certificate is presented. Check the Traefik dashboard for service routing status.",
+        "priority": "high",
+        "dependencies": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "status": "not_started",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Monitoring Stack Deployment (Prometheus & Grafana)",
+        "description": "Deploy Prometheus and Grafana VMs, configure Prometheus to collect metrics from the infrastructure and VMs, and create basic Grafana dashboards and alerting rules.",
+        "details": "Create Terraform resource definitions for Prometheus and Grafana server VMs. Develop Ansible playbooks for their installation and configuration. Configure Prometheus to monitor all Proxmox infrastructure components and provisioned VMs (e.g., using Node Exporter). Create initial Grafana dashboards for infrastructure monitoring and set up basic alerting rules for critical system events.",
+        "testStrategy": "Access Grafana dashboards and verify that metrics are being collected from all expected sources (Proxmox, VMs). Test a simple alerting rule to ensure notifications are triggered correctly.",
+        "priority": "high",
+        "dependencies": [
+          2,
+          3,
+          4
+        ],
+        "status": "not_started",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Docker Host Implementation",
+        "description": "Provision Docker host VMs using Terraform and configure Docker Engine with Ansible playbooks.",
+        "details": "Create Terraform resource definitions for Docker host VMs with specified resource allocations (4GB RAM, 2 vCPUs, 30GB disk). Develop Ansible playbooks for Docker Engine installation and basic configuration (e.g., registry mirrors, daemon settings).",
+        "testStrategy": "SSH into the provisioned Docker hosts. Verify that the Docker daemon is running correctly. Run a simple container (e.g., `docker run hello-world`) to confirm functionality.",
+        "priority": "medium",
+        "dependencies": [
+          2,
+          3,
+          4
+        ],
+        "status": "not_started",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Comprehensive Service Integration",
+        "description": "Integrate all deployed services with DNS for proper name resolution, configure routing through Traefik, and ensure comprehensive monitoring for all components.",
+        "details": "Update DNS records in the BIND server for all deployed services to ensure proper name resolution. Configure Traefik to route traffic to all web-based services, including containerized services on Docker hosts. Ensure all services are discoverable by Prometheus for metrics collection and implement service health checks.",
+        "testStrategy": "Verify that all services are accessible via their fully qualified domain names (FQDNs) through the Traefik reverse proxy. Check Prometheus and Grafana to confirm that all service metrics are being collected and health checks are reporting correctly.",
+        "priority": "high",
+        "dependencies": [
+          4,
+          6,
+          7,
+          8
+        ],
+        "status": "not_started",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Automated Backup Procedures",
+        "description": "Implement automated backup procedures for VMs and configurations using Proxmox built-in tools and ensure version control for all infrastructure code.",
+        "details": "Configure automated backup jobs within Proxmox for all critical VMs. Ensure that all Terraform state files, Ansible playbooks, and service configurations (e.g., BIND zone files) are consistently version-controlled in the Git repository. Document basic recovery procedures.",
+        "testStrategy": "Perform a test backup and restore operation for a non-critical VM to validate the backup process. Verify that all configuration files are correctly committed and retrievable from the Git repository.",
+        "priority": "high",
+        "dependencies": [
+          2,
+          3,
+          9
+        ],
+        "status": "not_started",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Knowledge Transfer & Documentation",
+        "description": "Create comprehensive operational runbooks, develop training materials for university IT staff, and conduct hands-on training sessions.",
+        "details": "Compile detailed operational runbooks covering deployment, troubleshooting, maintenance, and common administrative tasks. Develop training materials (presentations, practical exercises) tailored for university IT staff. Schedule and conduct hands-on training sessions to ensure effective knowledge transfer.",
+        "testStrategy": "Conduct training sessions and gather feedback from IT staff. Verify that IT staff can independently perform basic operational tasks and understand the documented procedures.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          9,
+          10
+        ],
+        "status": "not_started",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Future Enhancements Framework & Roadmap",
+        "description": "Document procedures for adding new services, create templates for common deployments, and outline the roadmap for future enhancements like HA and dynamic inventory.",
+        "details": "Create a 'how-to' guide or template for adding new services to the infrastructure, including steps for Terraform provisioning, Ansible configuration, Traefik integration, and monitoring setup. Document the future enhancement roadmap, including plans for dynamic Ansible inventory, a two-node Proxmox HA cluster, external NAS integration for backups, and proper CA integration for SSL certificates.",
+        "testStrategy": "Review the documented framework and roadmap with stakeholders to ensure clarity, completeness, and alignment with long-term goals. Confirm that the framework provides a clear path for future scalability and maintainability.",
+        "priority": "medium",
+        "dependencies": [
+          11
+        ],
+        "status": "not_started",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-09-01T19:55:21.773Z",
+      "updated": "2025-09-01T19:55:21.774Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

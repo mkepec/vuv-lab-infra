@@ -1,0 +1,33 @@
+# Proxmox connection settings
+# Copy this file to terraform.tfvars and fill in your values
+
+# Proxmox server details
+proxmox_host = "192.168.1.190"         # Your Proxmox server IP
+proxmox_node = "pve"                   # Your Proxmox node name
+
+# API token (from Proxmox setup guide)
+proxmox_api_token = "your-api-token-here"
+
+# VM template (created during Proxmox setup)
+template_name = "ubuntu2404-cloud"
+
+# SSH public key (paste content from ~/.ssh/proxmox_key.pub)
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... your-key-here"
+
+# Network configuration
+network_base = "192.168.1"             # Base network for static IPs
+network_gateway = "192.168.1.1"        # Your network gateway
+
+# Resource scaling (adjust based on your needs)
+gns3_server_count = 1                  # Number of GNS3 servers
+gns3_server_memory = 4096              # Memory for GNS3 servers (MB)
+gns3_server_cores = 4                  # CPU cores for GNS3 servers
+
+docker_host_count = 2                  # Number of Docker hosts
+docker_host_memory = 2048              # Memory for Docker hosts (MB)
+docker_host_cores = 2                  # CPU cores for Docker hosts
+
+utility_lxc_count = 3                  # Number of utility LXC containers
+
+# LXC template (check available templates with: pveam available)
+lxc_template = "ubuntu-24.04-standard_24.04-2_amd64.tar.zst"
