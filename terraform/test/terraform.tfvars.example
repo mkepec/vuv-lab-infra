@@ -11,3 +11,11 @@ template_name = "ubuntu2404-cloud"
 
 # SSH public key (paste content from ~/.ssh/proxmox_key.pub)
 ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... vuv-lab-proxmox"
+
+# Network configuration - Single subnet approach
+network_base = "192.168.1"            # Base network for all resources
+network_gateway = "192.168.1.1"       # Network gateway
+
+# LXC configuration
+lxc_count = 2                          # Number of test LXC containers
+lxc_template = "ubuntu-24.04-standard_24.04-2_amd64.tar.zst"

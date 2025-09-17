@@ -36,3 +36,9 @@ node_modules/
 
 # OS specific
 .DS_Store
+
+# Claude Code specific files
+.claude/settings.local.json
+
+# Task Master AI local files
+.taskmaster/tasks/tasks.json
