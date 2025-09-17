@@ -2,37 +2,146 @@
 
 This document explains how to configure Terraform to work with your Proxmox VE environment for infrastructure provisioning using the **independent workspace** approach.
 
-## Project Structure - Independent Workspaces
+## Project Structure - Shared Modules with Independent Workspaces
 
-The Terraform configuration uses **independent folders** for different services. Each folder is a complete, self-contained Terraform workspace:
+The Terraform configuration uses **shared modules** with **independent environment folders**. This provides maximum reusability while maintaining environment isolation:
 
 ```
 terraform/
-├── README.md            # Entry point guide - START HERE
+├── README.md                    # Entry point guide - START HERE
 │
-├── test/                # 👈 BEGINNER START - Simple test VM
-│   ├── versions.tf      # Provider configuration
-│   ├── variables.tf     # Test-specific variables  
-│   ├── main.tf          # Test VM resource definition
-│   ├── outputs.tf       # IP addresses, SSH commands
-│   ├── terraform.tfvars.example  # Example configuration
-│   └── .terraform/      # Terraform state (auto-created)
+├── modules/                     # 🔄 SHARED REUSABLE MODULES
+│   ├── vm/                      # Production-ready VM module
+│   │   ├── variables.tf         # VM configuration parameters
+│   │   ├── main.tf             # VM resource definition
+│   │   ├── outputs.tf          # VM information outputs
+│   │   └── versions.tf         # Provider requirements
+│   └── lxc/                     # Production-ready LXC module
+│       ├── variables.tf         # LXC configuration parameters
+│       ├── main.tf             # LXC resource definition
+│       ├── outputs.tf          # LXC information outputs
+│       └── versions.tf         # Provider requirements
 │
-├── gns3/                # GNS3 server (future)
-│   └── README.md        # Placeholder
+├── test/                        # 🧪 TEST ENVIRONMENT
+│   ├── production-vms.tf        # Uses ../modules/vm
+│   ├── test-lxc.tf             # Uses ../modules/lxc
+│   ├── vm-test.tf              # Legacy test VM (can be removed)
+│   ├── variables.tf            # Environment variables
+│   ├── outputs.tf              # Environment outputs
+│   ├── terraform.tfvars        # Environment configuration
+│   └── .terraform/             # Environment state
 │
-├── docker/              # Docker host VMs (future)
-│   └── README.md        # Placeholder  
+├── gns3/                        # 🌐 GNS3 ENVIRONMENT
+│   ├── gns3-server.tf          # Uses ../modules/vm
+│   ├── variables.tf            # GNS3-specific variables
+│   ├── outputs.tf              # GNS3 outputs
+│   └── terraform.tfvars        # GNS3 configuration
 │
-└── lxc/                 # LXC containers (future)
-    └── README.md        # Placeholder
+├── docker/                      # 🐳 DOCKER ENVIRONMENT
+│   ├── docker-hosts.tf         # Uses ../modules/vm
+│   ├── variables.tf            # Docker-specific variables
+│   ├── outputs.tf              # Docker outputs
+│   └── terraform.tfvars        # Docker configuration
+│
+└── lxc/                         # 📦 LXC ENVIRONMENT
+    ├── utility-containers.tf    # Uses ../modules/lxc
+    ├── variables.tf             # LXC-specific variables
+    ├── outputs.tf               # LXC outputs
+    └── terraform.tfvars         # LXC configuration
 ```
 
 **Key Benefits:**
-- ✅ **Simple workflow**: `cd test && terraform apply` only affects test/
-- ✅ **Safe isolation**: Cannot accidentally deploy everything
-- ✅ **Independent state**: Each service has separate state files
-- ✅ **Beginner-friendly**: Start with test/, learn incrementally
+- ✅ **Module Reusability**: One module, multiple environments
+- ✅ **Environment Isolation**: Independent state files prevent accidents
+- ✅ **Easy Maintenance**: Update module once, affects all environments
+- ✅ **Scalable Architecture**: Add new environments easily
+- ✅ **Production Ready**: Follows Terraform best practices
+
+## Shared Modules Architecture
+
+### Module Design Philosophy
+
+Each module in `terraform/modules/` is designed to be:
+- **Reusable**: Works across all environments (test, production, etc.)
+- **Configurable**: Flexible parameters for different use cases
+- **Single Purpose**: VM module for VMs, LXC module for containers
+- **Well-Documented**: Clear variable descriptions and examples
+
+### VM Module (`terraform/modules/vm/`)
+
+**Purpose**: Creates Proxmox VMs with consistent configuration and single subnet networking.
+
+**Key Features**:
+- Flexible resource allocation (CPU, memory, disk)
+- Cloud-init integration with SSH keys
+- Single subnet networking (192.168.1.x)
+- Serial console support for debugging
+- Comprehensive outputs for monitoring
+
+**Usage Example**:
+```hcl
+module "my_vm" {
+  source = "../modules/vm"
+
+  # Identity
+  vm_name        = "web-server"
+  vm_description = "Web application server"
+
+  # Resources
+  cpu_cores = 2
+  memory    = 4096
+  disk_size = 30
+
+  # Network (single subnet)
+  ip_address = "192.168.1.150/24"
+  gateway    = "192.168.1.1"
+
+  # Proxmox
+  target_node   = var.proxmox_node
+  template_name = var.template_name
+
+  # Authentication
+  ssh_public_keys = var.ssh_public_key
+}
+```
+
+### LXC Module (`terraform/modules/lxc/`)
+
+**Purpose**: Creates Proxmox LXC containers with consistent configuration and automatic startup.
+
+**Key Features**:
+- Lightweight containerization
+- Automatic startup (`start = true`)
+- Template-based deployment
+- Resource limits and quotas
+- Network configuration for single subnet
+
+**Usage Example**:
+```hcl
+module "my_container" {
+  source = "../modules/lxc"
+
+  # Identity
+  container_name = "dns-server"
+  description    = "BIND DNS server container"
+
+  # Resources
+  cpu_cores = 1
+  memory    = 512
+  disk_size = 8
+
+  # Network (single subnet)
+  ip_address = "192.168.1.160/24"
+  gateway    = "192.168.1.1"
+
+  # LXC Configuration
+  template_name = "ubuntu-24.04-standard_24.04-2_amd64.tar.zst"
+  target_node   = var.proxmox_node
+
+  # Authentication
+  ssh_public_keys = var.ssh_public_key
+}
+```
 
 ## Core Configuration Files - Test Workspace Example
 
@@ -276,21 +385,118 @@ resource "proxmox_vm_qemu" "lab_vm" {
 ```hcl
 resource "proxmox_vm_qemu" "multi_net_vm" {
   # ... basic configuration ...
-  
+
   # Management network
   network {
     model  = "virtio"
     bridge = "vmbr0"
   }
-  
+
   # Application network
   network {
-    model  = "virtio" 
+    model  = "virtio"
     bridge = "vmbr1"
   }
-  
+
   ipconfig0 = "ip=dhcp"
   ipconfig1 = "ip=10.0.1.10/24"
+}
+```
+
+## Network Configuration Strategy
+
+### Current Implementation: Single Subnet Approach
+
+The VUV lab currently uses a **single flat network (192.168.1.x)** for all resources to minimize complexity and avoid dependencies on university network equipment VLAN capabilities.
+
+```hcl
+# Current single subnet configuration in variables.tf
+variable "network_base" {
+  description = "Base network for all resources (e.g., 192.168.1)"
+  type        = string
+  default     = "192.168.1"
+}
+
+variable "network_gateway" {
+  description = "Network gateway"
+  type        = string
+  default     = "192.168.1.1"
+}
+```
+
+**Benefits of current approach:**
+- ✅ **Simple deployment** - No external network dependencies
+- ✅ **Immediate functionality** - All services can communicate directly
+- ✅ **Easy troubleshooting** - Single broadcast domain
+- ✅ **University IT independence** - No switch configuration required
+
+**Typical IP allocation:**
+```
+192.168.1.1-50      - Infrastructure (gateway, DNS, etc.)
+192.168.1.51-100    - Service VMs (GNS3, Grafana, etc.)
+192.168.1.101-150   - LXC containers (utilities, microservices)
+192.168.1.151-200   - Lab VMs (student workspaces)
+```
+
+### Future Enhancement: VLAN Segmentation
+
+> **📋 FUTURE IMPROVEMENT**: VLAN-based network isolation can be implemented as an enhancement when university network infrastructure capabilities are confirmed.
+
+**Planned VLAN topology for future implementation:**
+
+```hcl
+# Future VLAN configuration example
+variable "vlan_management" {
+  description = "VLAN ID for management network (10.0.10.x/24)"
+  type        = number
+  default     = 10
+}
+
+variable "vlan_service" {
+  description = "VLAN ID for service network (10.0.20.x/24)"
+  type        = number
+  default     = 20
+}
+
+variable "vlan_lab" {
+  description = "VLAN ID for lab network (10.0.30.x/24)"
+  type        = number
+  default     = 30
+}
+```
+
+**Network segmentation plan:**
+- **Management VLAN (10)**: 10.0.10.x/24 - Infrastructure services (DNS, monitoring, Proxmox management)
+- **Service VLAN (20)**: 10.0.20.x/24 - Application services (GNS3, Traefik, Docker hosts)
+- **Lab VLAN (30)**: 10.0.30.x/24 - Student workstations and lab activities
+
+**Prerequisites for VLAN implementation:**
+- ✅ University switch must support 802.1Q VLAN tagging
+- ✅ Inter-VLAN routing capability on network equipment
+- ✅ Trunk port configuration to Proxmox server
+- ✅ DHCP/DNS updates for multiple subnets
+- ✅ Coordination with university IT department
+
+**Migration path from single subnet to VLANs:**
+1. **Assessment Phase**: Confirm university network equipment capabilities
+2. **Coordination Phase**: Work with university IT for switch configuration
+3. **Implementation Phase**: Update Terraform configurations to include VLAN tagging
+4. **Testing Phase**: Validate inter-VLAN routing and service accessibility
+5. **Cutover Phase**: Migrate services incrementally to maintain uptime
+
+**Example VLAN-enabled resource configuration:**
+```hcl
+# Future VLAN implementation example
+resource "proxmox_vm_qemu" "service_vm" {
+  # ... basic VM configuration ...
+
+  network {
+    model  = "virtio"
+    bridge = "vmbr0"
+    tag    = var.vlan_service    # VLAN tagging
+  }
+
+  ipconfig0 = "ip=${cidrhost(var.service_network_cidr, 10)}/24,gw=${var.service_gateway}"
 }
 ```
 
@@ -308,6 +514,90 @@ resource "proxmox_vm_qemu" "lab_vm" {
   # ... other configuration ...
   pool = proxmox_pool.lab_pool.poolid
 }
+```
+
+## Shared Module Workflow
+
+### Development Workflow with Shared Modules
+
+**1. Working with Multiple Environments**
+
+Each environment is completely independent, but uses the same shared modules:
+
+```bash
+# Test Environment - Development and validation
+cd terraform/test
+terraform init      # Install shared modules
+terraform apply     # Deploy test infrastructure
+
+# GNS3 Environment - Network simulation
+cd terraform/gns3
+terraform init      # Install same shared modules
+terraform apply     # Deploy GNS3 infrastructure
+
+# Docker Environment - Container hosts
+cd terraform/docker
+terraform init      # Install same shared modules
+terraform apply     # Deploy Docker infrastructure
+
+# LXC Environment - Utility containers
+cd terraform/lxc
+terraform init      # Install same shared modules
+terraform apply     # Deploy LXC infrastructure
+```
+
+**2. Module Updates**
+
+When you update a shared module, all environments can use the new version:
+
+```bash
+# Update VM module (example: add new feature)
+vim terraform/modules/vm/main.tf
+
+# Apply updates to test environment first
+cd terraform/test
+terraform init      # Refresh module
+terraform plan      # Review changes
+terraform apply     # Test the update
+
+# Deploy to other environments when ready
+cd terraform/gns3
+terraform init && terraform apply
+
+cd terraform/docker
+terraform init && terraform apply
+```
+
+**3. Environment-Specific Configuration**
+
+Each environment has its own `terraform.tfvars` for different configurations:
+
+```bash
+# Test Environment (terraform/test/terraform.tfvars)
+proxmox_host = "192.168.1.100"
+proxmox_node = "pve"
+# ... test-specific settings
+
+# Production GNS3 (terraform/gns3/terraform.tfvars)
+proxmox_host = "192.168.1.100"
+proxmox_node = "pve"
+# ... GNS3-specific settings with higher resources
+```
+
+**4. Safe Deployment Strategy**
+
+```bash
+# 1. Always test first
+cd terraform/test
+terraform plan && terraform apply
+
+# 2. Deploy to staging/development environments
+cd terraform/gns3
+terraform plan && terraform apply
+
+# 3. Deploy to production last
+cd terraform/docker
+terraform plan && terraform apply
 ```
 
 ## Terraform Workflow - Independent Workspaces
