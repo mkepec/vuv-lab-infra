@@ -63,13 +63,21 @@ variable "network_bridge" {
 }
 
 variable "ip_address" {
-  description = "Static IP address in CIDR notation (e.g., 192.168.1.160/24)"
+  description = "Static IP address in CIDR notation (e.g., 192.168.1.160/24). Leave empty for DHCP."
   type        = string
+  default     = ""
 }
 
 variable "gateway" {
-  description = "Network gateway"
+  description = "Network gateway (required for static IP)"
   type        = string
+  default     = ""
+}
+
+variable "use_dhcp" {
+  description = "Use DHCP for IP assignment instead of static IP"
+  type        = bool
+  default     = true
 }
 
 # Container Features

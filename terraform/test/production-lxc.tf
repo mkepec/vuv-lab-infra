@@ -9,7 +9,8 @@ locals {
       cpu_cores   = 1
       memory      = 512
       disk_size   = "8G"
-      ip_address  = "192.168.1.170/24"
+      # Static IP Configuration (comment out for DHCP)
+      # ip_address  = "192.168.1.170/24"
       tags        = "production,dns,infrastructure"
     }
     "monitoring-agent" = {
@@ -17,7 +18,8 @@ locals {
       cpu_cores   = 1
       memory      = 768
       disk_size   = "10G"
-      ip_address  = "192.168.1.171/24"
+      # Static IP Configuration (comment out for DHCP)
+      # ip_address  = "192.168.1.171/24"
       tags        = "production,monitoring,infrastructure"
     }
   }
@@ -42,9 +44,14 @@ module "production_lxc" {
   memory    = each.value.memory
   disk_size = each.value.disk_size
 
-  # Network Configuration - Single Subnet
-  ip_address = each.value.ip_address
-  gateway    = var.network_gateway
+  # Network Configuration - DHCP by default
+  # Option 1: DHCP (default - automatic IP assignment)
+  use_dhcp = true
+
+  # Option 2: Static IP (uncomment and set ip_address in locals above)
+  # use_dhcp   = false
+  # ip_address = each.value.ip_address
+  # gateway    = var.network_gateway
 
   # SSH Configuration
   ssh_public_keys = var.ssh_public_key

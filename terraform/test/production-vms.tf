@@ -9,14 +9,16 @@ locals {
       cpu_cores   = 2
       memory      = 2048
       disk_size   = 25
-      ip_address  = "192.168.1.110/24"
+      # Static IP Configuration (comment out for DHCP)
+      # ip_address  = "192.168.1.110/24"
     }
     "service-vm-1" = {
       description = "Service VM for infrastructure services"
       cpu_cores   = 2
       memory      = 4096
       disk_size   = 30
-      ip_address  = "192.168.1.120/24"
+      # Static IP Configuration (comment out for DHCP)
+      # ip_address  = "192.168.1.120/24"
     }
   }
 }
@@ -40,9 +42,14 @@ module "production_vms" {
   memory    = each.value.memory
   disk_size = each.value.disk_size
 
-  # Network Configuration - Single Subnet
-  ip_address = each.value.ip_address
-  gateway    = var.network_gateway
+  # Network Configuration - DHCP by default
+  # Option 1: DHCP (default - automatic IP assignment)
+  use_dhcp = true
+
+  # Option 2: Static IP (uncomment and set ip_address in locals above)
+  # use_dhcp   = false
+  # ip_address = each.value.ip_address
+  # gateway    = var.network_gateway
 
   # Cloud-init Configuration
   ci_user         = "ubuntu"

@@ -24,8 +24,9 @@ resource "proxmox_lxc" "container" {
   network {
     name   = "eth0"
     bridge = var.network_bridge
-    ip     = var.ip_address
-    gw     = var.gateway
+    # Use DHCP if use_dhcp is true, otherwise use static IP configuration
+    ip = var.use_dhcp ? "dhcp" : var.ip_address
+    gw = var.use_dhcp ? "" : var.gateway
     # Note: No 'tag' parameter - enforcing single flat network
   }
 

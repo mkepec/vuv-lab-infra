@@ -438,6 +438,99 @@ variable "network_gateway" {
 192.168.1.151-200   - Lab VMs (student workspaces)
 ```
 
+### IP Assignment Options
+
+The Terraform modules support both **DHCP** and **static IP** assignment. You can choose the approach that best fits your network setup:
+
+#### Option 1: DHCP Assignment (Default)
+
+**Recommended for initial setup and testing.**
+
+```hcl
+# In production-vms.tf and production-lxc.tf
+module "production_vms" {
+  # ... other configuration ...
+
+  # DHCP configuration
+  use_dhcp = true  # Default: automatic IP assignment
+}
+```
+
+**Benefits:**
+- ✅ **Automatic IP management** - No manual IP conflict resolution
+- ✅ **Easier setup** - Works immediately with most networks
+- ✅ **Dynamic adaptation** - VMs get valid IPs from existing DHCP server
+- ✅ **DHCP reservations** - Router can assign consistent IPs by MAC address
+
+**Usage:**
+- Ensure DHCP server is running on your network (router/firewall)
+- VMs and LXC containers will request IPs automatically
+- Check Proxmox console or DHCP server logs for assigned IPs
+- Use DHCP reservations for predictable IP assignments
+
+#### Option 2: Static IP Assignment
+
+**Recommended for production deployment with known network layout.**
+
+```hcl
+# In production-vms.tf - uncomment ip_address in locals
+locals {
+  production_vms = {
+    "lab-vm-1" = {
+      # ... other config ...
+      ip_address = "192.168.1.110/24"  # Uncomment this line
+    }
+  }
+}
+
+# In module configuration
+module "production_vms" {
+  # ... other configuration ...
+
+  # Static IP configuration
+  use_dhcp   = false
+  ip_address = each.value.ip_address
+  gateway    = var.network_gateway
+}
+```
+
+**Benefits:**
+- ✅ **Predictable networking** - Known IP addresses for each service
+- ✅ **DNS planning** - Can pre-configure DNS records
+- ✅ **Service integration** - Other services can reference known IPs
+- ✅ **Documentation alignment** - IP addresses match planned architecture
+
+**Usage:**
+1. Edit `production-vms.tf` and `production-lxc.tf`
+2. Uncomment `ip_address` lines in the `locals` blocks
+3. Set `use_dhcp = false` in module configurations
+4. Uncomment static IP parameters in module calls
+5. Ensure no IP conflicts with existing network devices
+
+#### Switching Between Methods
+
+To **switch from DHCP to static IP**:
+```bash
+# 1. Edit configuration files
+vim terraform/test/production-vms.tf  # Uncomment ip_address lines
+vim terraform/test/production-lxc.tf  # Set use_dhcp = false
+
+# 2. Apply changes
+terraform plan   # Review changes
+terraform apply  # Apply IP configuration changes
+```
+
+To **switch from static IP to DHCP**:
+```bash
+# 1. Edit configuration files
+vim terraform/test/production-vms.tf  # Comment ip_address lines
+vim terraform/test/production-lxc.tf  # Set use_dhcp = true
+
+# 2. Apply changes
+terraform plan   # Review changes
+terraform apply  # Apply IP configuration changes
+```
+
 ### Future Enhancement: VLAN Segmentation
 
 > **📋 FUTURE IMPROVEMENT**: VLAN-based network isolation can be implemented as an enhancement when university network infrastructure capabilities are confirmed.

@@ -13,8 +13,20 @@ template_name = "ubuntu2404-cloud"
 ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... vuv-lab-proxmox"
 
 # Network configuration - Single subnet approach
-network_base = "192.168.1"            # Base network for all resources
-network_gateway = "192.168.1.1"       # Network gateway
+network_base = "192.168.1"            # Base network for all resources (used for static IP)
+network_gateway = "192.168.1.1"       # Network gateway (required for static IP)
+
+# IP Assignment Options:
+# Option 1: DHCP (default) - Automatic IP assignment from router/DHCP server
+#   - VMs and LXC containers will get IP addresses automatically
+#   - Easier setup, no manual IP management
+#   - Use DHCP reservations on router for consistent IPs if needed
+#
+# Option 2: Static IP - Manual IP assignment
+#   - Uncomment ip_address lines in production-vms.tf and production-lxc.tf
+#   - Set use_dhcp = false in module configurations
+#   - Provides predictable IP addresses
+#   - Requires manual IP conflict management
 
 # LXC configuration
 lxc_count = 2                          # Number of test LXC containers

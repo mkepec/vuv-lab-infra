@@ -52,9 +52,10 @@ resource "proxmox_vm_qemu" "vm" {
   # Boot configuration
   boot = "order=scsi0"
 
-  # Cloud-init configuration with static IP
-  os_type   = "cloud-init"
-  ipconfig0 = "ip=${var.ip_address},gw=${var.gateway}"
+  # Cloud-init configuration with dynamic IP assignment
+  os_type = "cloud-init"
+  # Use DHCP if use_dhcp is true, otherwise use static IP configuration
+  ipconfig0 = var.use_dhcp ? "ip=dhcp" : "ip=${var.ip_address},gw=${var.gateway}"
 
   # User configuration
   ciuser     = var.ci_user

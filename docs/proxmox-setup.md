@@ -12,18 +12,124 @@ Proxmox VE requires specific user permissions, API authentication, and VM templa
 - Root access to Proxmox host
 - Basic understanding of Proxmox concepts
 
+## Post-Installation Repository Configuration
+
+After a fresh Proxmox VE installation, you need to configure repositories for systems without a subscription to avoid the "You do not have a valid subscription" warning and enable package updates.
+
+### Disable Enterprise Repositories
+
+The enterprise repositories require a paid subscription. Disable them for educational/testing use by renaming the files:
+
+```bash
+# Disable Proxmox VE enterprise repository
+mv /etc/apt/sources.list.d/pve-enterprise.sources /etc/apt/sources.list.d/pve-enterprise.sources.disabled
+
+# Disable Ceph enterprise repository
+mv /etc/apt/sources.list.d/ceph.sources /etc/apt/sources.list.d/ceph.sources.disabled
+
+# Verify enterprise repositories are disabled
+ls -la /etc/apt/sources.list.d/*.disabled
+```
+
+### Enable No-Subscription Repositories
+
+Add the required no-subscription repositories for updates:
+
+```bash
+# Create the Proxmox VE no-subscription repository
+cat > /etc/apt/sources.list.d/proxmox.sources << 'EOF'
+Types: deb
+URIs: http://download.proxmox.com/debian/pve
+Suites: trixie
+Components: pve-no-subscription
+Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+EOF
+
+# Create the Ceph no-subscription repository
+cat > /etc/apt/sources.list.d/ceph.sources << 'EOF'
+Types: deb
+URIs: http://download.proxmox.com/debian/ceph-squid
+Suites: trixie
+Components: no-subscription
+Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+EOF
+
+# Update Debian repositories for proper package sources
+cat > /etc/apt/sources.list.d/debian.sources << 'EOF'
+Types: deb deb-src
+URIs: http://deb.debian.org/debian/
+Suites: trixie trixie-updates
+Components: main non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb deb-src
+URIs: http://security.debian.org/debian-security/
+Suites: trixie-security
+Components: main non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+EOF
+
+# Update package lists
+apt update
+
+# Verify repositories are working
+apt list --upgradable
+```
+
+### Remove Subscription Warning (Web UI)
+
+The repository configuration enables updates but doesn't remove the subscription warning popup in the web interface. To disable this warning for educational use:
+
+```bash
+# Backup the original file
+cp /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js.backup
+
+# Disable the subscription warning popup
+sed -i "s/Ext\.Msg\.show/void/g" /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+
+# Verify the change was made
+grep -n "void(" /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+
+# Restart Proxmox web service to apply changes
+systemctl restart pveproxy
+```
+
+**Note**: This change removes the subscription warning popup from the web interface. The modification is safe for educational environments but will need to be reapplied after Proxmox updates.
+
+### Update System Packages
+
+After configuring repositories, update the system:
+
+```bash
+# Update package database
+apt update
+
+# Upgrade all packages
+apt full-upgrade -y
+
+# Reboot if kernel was updated
+reboot
+```
+
+**Note**: The no-subscription repository is suitable for testing and educational environments like the VUV lab. For production environments, consider purchasing a Proxmox VE subscription for enterprise support and more stable packages.
+
 ## User and Authentication Setup
 
 ### Create Terraform Role
 
-Proxmox uses role-based access control. Create a role with minimal required privileges:
+Proxmox uses role-based access control. Create a role with all required privileges for Terraform operations including guest agent support:
 
 ```bash
-# Create role with specific privileges for Terraform operations
-pveum role add TerraformProv -privs "VM.Allocate,VM.Audit,VM.Backup,VM.Clone,VM.Config.CDROM,VM.Config.CPU,VM.Config.Cloudinit,VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Console,VM.Migrate,VM.PowerMgmt,VM.Snapshot,Datastore.AllocateSpace,Datastore.Audit,Pool.Allocate,Pool.Audit,SDN.Use,Sys.Audit,Sys.Console,Sys.Modify"
+# Store privileges in variable for easier management and updates
+# This approach allows easy role modification and ensures consistency
+PRIVS="VM.Allocate,VM.Audit,VM.Backup,VM.Clone,VM.Config.CDROM,VM.Config.CPU,VM.Config.Cloudinit,VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Console,VM.Migrate,VM.PowerMgmt,VM.Snapshot,Datastore.AllocateSpace,Datastore.Audit,Pool.Allocate,Pool.Audit,SDN.Use,Sys.Audit,Sys.Console,Sys.Modify,VM.GuestAgent.Audit,VM.GuestAgent.Unrestricted"
+
+# Create role with comprehensive privileges for Terraform operations
+pveum role add TerraformProv -privs "$PRIVS"
 
 # Verify role creation
 pveum role list | grep TerraformProv
+pveum role list
 ```
 
 ### Create Terraform User
@@ -101,6 +207,9 @@ qm set 9001 --ide2 local-lvm:cloudinit
 # Configure boot settings
 qm set 9001 --boot c --bootdisk scsi0
 
+# Enable QEMU guest agent with enhanced configuration for Terraform compatibility
+qm set 9001 --agent enabled=1,fstrim_cloned_disks=1,freeze-fs-on-backup=1,type=virtio
+
 # Enable serial console (useful for debugging)
 qm set 9001 --serial0 socket --vga serial0
 ```
@@ -111,10 +220,17 @@ qm set 9001 --serial0 socket --vga serial0
 # Convert VM to template (this renames disk to base-*)
 qm template 9001
 
-# Verify template creation
-qm list 
+# Verify template creation and configuration
 qm list | grep 9001
 qm config 9001
+
+# Validate template configuration for Terraform compatibility
+echo "=== Template Validation ==="
+echo -n "Template status: " && qm config 9001 | grep "template:" | cut -d: -f2
+echo -n "Guest agent: " && qm config 9001 | grep "agent:" | cut -d: -f2
+echo -n "Cloud-init drive: " && qm config 9001 | grep "ide2:" | cut -d: -f2
+echo -n "Network config: " && qm config 9001 | grep "net0:" | cut -d: -f2 | cut -d, -f1
+echo -n "Boot disk: " && qm config 9001 | grep "boot:" | cut -d: -f2
 
 # Clean up downloaded image
 rm noble-server-cloudimg-amd64.img
@@ -142,36 +258,21 @@ pveam available | grep ubuntu
 For the VUV lab infrastructure, download these essential templates:
 
 ```bash
-# Download Ubuntu 24.04 LTS template (latest stable)
+# Download Ubuntu 24.04 LTS template (primary Linux distribution)
 pveam download local ubuntu-24.04-standard_24.04-2_amd64.tar.zst
 
-# Alternative: Download Ubuntu 22.04 LTS for compatibility
-pveam download local ubuntu-22.04-standard_22.04-1_amd64.tar.zst
-
-# Download Ubuntu 20.04 LTS for legacy support (optional)
-pveam download local ubuntu-20.04-standard_20.04-1_amd64.tar.zst
+# Download Rocky Linux 9 template (RHEL-compatible for enterprise education)
+pveam download local rockylinux-9-default_20240912_amd64.tar.xz
 ```
 
-### Alternative Template Downloads
+### Check Available Templates
 
-If specific versions aren't available, use these commands to find and download alternatives:
+If you need to verify what templates are available:
 
 ```bash
-# Find latest Ubuntu 24.04 template
-pveam available | grep "ubuntu-24.04" | head -1
-
-# Download the first available Ubuntu 24.04 template
-TEMPLATE=$(pveam available | grep "ubuntu-24.04" | head -1 | awk '{print $2}')
-pveam download local $TEMPLATE
-
-# For automation scripts - download latest available Ubuntu template
-LATEST_UBUNTU=$(pveam available | grep "ubuntu-24.04-standard" | head -1 | awk '{print $2}')
-if [ ! -z "$LATEST_UBUNTU" ]; then
-  pveam download local $LATEST_UBUNTU
-  echo "Downloaded: $LATEST_UBUNTU"
-else
-  echo "No Ubuntu 24.04 templates available"
-fi
+# Check available Ubuntu and Rocky Linux templates
+pveam available | grep "ubuntu-24.04"
+pveam available | grep "rockylinux-9"
 ```
 
 ### Verify Template Downloads
@@ -180,14 +281,14 @@ fi
 # List all downloaded templates
 pveam list local
 
-# Check specific Ubuntu templates
-pveam list local | grep ubuntu
+# Check downloaded templates
+pveam list local | grep -E "(ubuntu|rocky)"
 
-# Verify template file exists
-ls -la /var/lib/vz/template/cache/
+# Verify template files exist
+ls -la /var/lib/vz/template/cache/ | grep -E "(ubuntu-24.04|rockylinux-9)"
 
 # Check template details
-pveam list local | grep ubuntu-24.04
+pveam list local | grep -E "ubuntu-24.04|rockylinux-9"
 ```
 
 ### Template Storage Locations
@@ -205,20 +306,23 @@ pvesm status | grep vztmpl
 df -h /var/lib/vz/
 ```
 
-### Additional Useful Templates
+### Optional Templates
 
-For extended lab functionality, consider downloading:
+Consider downloading these templates for specific use cases:
 
 ```bash
-# Alpine Linux (minimal, fast startup)
-pveam download local alpine-3.18-default_20230607_amd64.tar.xz
+# Alpine Linux (minimal footprint - ideal for microservices, testing, resource-constrained environments)
+pveam download local alpine-3.22-default_20250617_amd64.tar.xz
 
-# Debian 12 (stable base)
-pveam download local debian-12-standard_12.2-1_amd64.tar.zst
-
-# CentOS Stream 9 (enterprise testing)
-pveam download local centos-9-stream-default_20221109_amd64.tar.xz
+# Debian 12 (stable base for projects requiring Debian-specific packages)
+pveam download local debian-12-standard_12.12-1_amd64.tar.zst
 ```
+
+**Note**: Alpine Linux is particularly useful when you need:
+- **Small container footprint** (typically 5-10MB vs 100+MB for Ubuntu)
+- **Fast startup times** for testing and development
+- **Resource efficiency** in memory-constrained lab environments
+- **Microservices development** where minimal base images are preferred
 
 ### Template Cleanup (Optional)
 
@@ -235,48 +339,6 @@ pveam remove local:vztmpl/template-name.tar.zst
 pveam remove local:vztmpl/ubuntu-20.04-standard_20.04-1_amd64.tar.zst
 ```
 
-### Automation Script for Template Management
-
-Create a script for consistent template setup:
-
-```bash
-#!/bin/bash
-# Template download script for VUV Lab Infrastructure
-
-echo "Updating available templates..."
-pveam update
-
-echo "Downloading essential templates..."
-
-# Ubuntu 24.04 LTS (primary)
-if pveam available | grep -q "ubuntu-24.04-standard"; then
-    UBUNTU_24=$(pveam available | grep "ubuntu-24.04-standard" | head -1 | awk '{print $2}')
-    echo "Downloading Ubuntu 24.04: $UBUNTU_24"
-    pveam download local $UBUNTU_24
-else
-    echo "Ubuntu 24.04 not available"
-fi
-
-# Ubuntu 22.04 LTS (fallback)
-if pveam available | grep -q "ubuntu-22.04-standard"; then
-    UBUNTU_22=$(pveam available | grep "ubuntu-22.04-standard" | head -1 | awk '{print $2}')
-    echo "Downloading Ubuntu 22.04: $UBUNTU_22"
-    pveam download local $UBUNTU_22
-else
-    echo "Ubuntu 22.04 not available"
-fi
-
-echo "Template download complete!"
-echo "Available templates:"
-pveam list local | grep ubuntu
-```
-
-Save this as `/root/setup-lxc-templates.sh` and run:
-
-```bash
-chmod +x /root/setup-lxc-templates.sh
-/root/setup-lxc-templates.sh
-```
 
 ### Integration with Terraform
 
@@ -284,7 +346,7 @@ Update your Terraform configuration based on downloaded templates:
 
 ```bash
 # Check exact template name
-pveam list local | grep ubuntu-24.04
+pveam list local
 
 # Use exact name in terraform.tfvars
 # lxc_template = "ubuntu-24.04-standard_24.04-2_amd64.tar.zst"
@@ -400,6 +462,15 @@ Default configuration should include:
 
 Before proceeding with Terraform:
 
+**Post-Installation Setup:**
+- [ ] Enterprise repositories disabled (`.sources` files renamed to `.disabled`)
+- [ ] Proxmox VE no-subscription repository enabled
+- [ ] Ceph no-subscription repository enabled
+- [ ] Debian repositories updated with proper sources
+- [ ] Subscription warning popup disabled in web UI
+- [ ] System packages updated (`apt full-upgrade`)
+- [ ] Web interface accessible without subscription warnings
+
 **Authentication & Permissions:**
 - [ ] TerraformProv role created with required privileges
 - [ ] terraform@pve user created and role assigned
@@ -414,13 +485,108 @@ Before proceeding with Terraform:
 **LXC Templates:**
 - [ ] LXC template repository updated (`pveam update`)
 - [ ] Ubuntu 24.04 LXC template downloaded
-- [ ] LXC templates verified with `pveam list local | grep ubuntu`
-- [ ] Template file exists in `/var/lib/vz/template/cache/`
+- [ ] Rocky Linux 9 LXC template downloaded
+- [ ] LXC templates verified with `pveam list local | grep -E "(ubuntu|rocky)"`
+- [ ] Template files exist in `/var/lib/vz/template/cache/`
+
+**Integration Testing:**
+- [ ] Manual VM clone test completed successfully (`qm clone 9001 999`)
+- [ ] Guest agent responds to ping and commands
+- [ ] Test VM cleanup completed (`qm destroy 999`)
 
 **Storage & Infrastructure:**
 - [ ] Storage pools are active and accessible (`pvesm status`)
 - [ ] Sufficient storage space available (`df -h /var/lib/vz/`)
 - [ ] Network bridge `vmbr0` configured and active
+
+## Advanced Proxmox Commands
+
+### VM Management and Monitoring
+```bash
+# Interactive API shell for troubleshooting
+pvesh ls /nodes
+
+# Check VM resource usage and status
+pvesh get /nodes/localhost/qemu/<vmid>/status/current
+
+# Monitor VM logs
+journalctl -u qemu-server@<vmid> -f
+
+# Test guest agent functionality (after VM is running and guest agent is installed)
+qm guest cmd <vmid> get-time
+qm guest cmd <vmid> get-osinfo
+qm guest exec <vmid> -- ls -la /
+```
+
+### Storage Management
+```bash
+# Check storage status and usage
+pvesm status
+pvesm list local-lvm
+df -h /var/lib/vz/
+
+# Backup operations
+vzdump --dump --dumpdir /var/lib/vz/dump <vmid>
+```
+
+### Network and System Information
+```bash
+# Check network bridges
+ip link show
+brctl show
+
+# System resource monitoring
+pvesh get /nodes/localhost/status
+cat /proc/version
+pveversion
+```
+
+## Terraform Integration Testing
+
+Before using Terraform, test VM cloning manually:
+
+```bash
+# Test VM cloning (simulates Terraform behavior)
+qm clone 9001 999 --name test-terraform-clone
+
+# Configure basic cloud-init for the test VM (required for cloud images to boot properly)
+qm set 999 --ciuser ubuntu
+qm set 999 --cipassword $(openssl passwd -6 "testpass123")
+qm set 999 --ipconfig0 ip=dhcp
+
+# Start cloned VM
+qm start 999
+
+# Check VM status
+qm status 999
+
+# Cleanup test VM when done
+qm stop 999 && qm destroy 999
+```
+
+### Manual Testing Steps
+
+After running the commands above:
+
+1. **Monitor VM boot**: `qm terminal 999`
+2. **Login**: ubuntu/testpass123
+3. **Check IP**: `ip addr show`
+4. **Install guest agent**: `sudo apt update && sudo apt install qemu-guest-agent -y`
+5. **Enable service**: `sudo systemctl enable --now qemu-guest-agent`
+6. **Alternative**: SSH to VM IP if network permits
+
+**Note about Guest Agent**: The Ubuntu cloud image template doesn't include the QEMU guest agent by default. This is normal and expected. When using Terraform with cloud-init, you can install the guest agent during VM provisioning:
+
+```yaml
+# Example cloud-init configuration to install guest agent
+packages:
+  - qemu-guest-agent
+runcmd:
+  - systemctl enable qemu-guest-agent
+  - systemctl start qemu-guest-agent
+```
+
+The guest agent will be available once it's installed and the VM is rebooted. For the manual test, a successful VM start/stop cycle confirms the template works correctly for Terraform.
 
 ## Troubleshooting
 
@@ -443,19 +609,20 @@ pveum user permissions terraform@pve
 pveum aclmod / -user terraform@pve -role TerraformProv
 ```
 
-### Permission Error: "Sys.Modify" Missing
-If you get `permissions for user/token terraform@pve are not sufficient, please provide also the following permissions that are missing: [Sys.Modify]`:
+### Permission Errors: Missing Privileges
+
+If you get permission errors like `Sys.Modify`, `VM.GuestAgent.Audit`, or `VM.GuestAgent.Unrestricted` missing:
 
 **Option 1: Update existing role (recommended)**
 ```bash
-# Store privileges in variable for easier management
-PRIVS="VM.Allocate,VM.Audit,VM.Backup,VM.Clone,VM.Config.CDROM,VM.Config.CPU,VM.Config.Cloudinit,VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Console,VM.Migrate,VM.PowerMgmt,VM.Snapshot,Datastore.AllocateSpace,Datastore.Audit,Pool.Allocate,Pool.Audit,SDN.Use,Sys.Audit,Sys.Console,Sys.Modify,VM.GuestAgent.Audit"
+# Store comprehensive privileges in variable for easier management
+PRIVS="VM.Allocate,VM.Audit,VM.Backup,VM.Clone,VM.Config.CDROM,VM.Config.CPU,VM.Config.Cloudinit,VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Console,VM.Migrate,VM.PowerMgmt,VM.Snapshot,Datastore.AllocateSpace,Datastore.Audit,Pool.Allocate,Pool.Audit,SDN.Use,Sys.Audit,Sys.Console,Sys.Modify,VM.GuestAgent.Audit,VM.GuestAgent.Unrestricted"
 
-# Update role with all required permissions including guest agent
+# Update role with all required permissions
 pveum role modify TerraformProv -privs "$PRIVS"
 
-# Verify the permissions were added
-pveum role show TerraformProv
+# Verify the permissions were updated
+pveum role list | grep TerraformProv
 ```
 
 **Option 2: Quick fix - assign Administrator role (less secure)**
@@ -485,6 +652,39 @@ pvesm status
 # Check template conversion worked
 qm config 9001 | grep template
 # Should show: template: 1
+
+# If guest agent not working after template creation:
+qm set 9001 --agent enabled=1,fstrim_cloned_disks=1,freeze-fs-on-backup=1,type=virtio
+
+# Reset cloud-init if needed
+qm set 9001 --delete ide2
+qm set 9001 --ide2 local-lvm:cloudinit
+```
+
+### Common Terraform Integration Issues
+```bash
+# Guest agent timeout errors
+# Verify guest agent is properly configured:
+qm config <vmid> | grep agent
+
+# Test guest agent after VM starts:
+qm guest ping <vmid>
+
+# Cloud-init not working
+# Check cloud-init configuration:
+qm config <vmid> | grep ide2
+# Reset if necessary:
+qm set <vmid> --delete ide2 && qm set <vmid> --ide2 local-lvm:cloudinit
+
+# VM clone fails
+# Check storage permissions and space:
+pvesm status
+df -h /var/lib/vz/
+
+# Network issues with cloned VMs
+# Verify bridge configuration:
+ip link show vmbr0
+brctl show vmbr0
 ```
 
 ## Next Steps
@@ -513,7 +713,19 @@ qm config 9001 | grep template
 
 ## References
 
+### Proxmox VE Documentation
+- [Proxmox VE Documentation Index](https://pve.proxmox.com/pve-docs/) - Complete official documentation
 - [Proxmox VE User Management](https://pve.proxmox.com/wiki/User_Management)
 - [Proxmox VE API Documentation](https://pve.proxmox.com/pve-docs/api-viewer/)
 - [Cloud-Init in Proxmox](https://pve.proxmox.com/wiki/Cloud-Init_Support)
+- [qm Command Reference](https://pve.proxmox.com/pve-docs/qm.1.html) - VM management commands
+- [pct Command Reference](https://pve.proxmox.com/pve-docs/pct.1.html) - Container management commands
+- [pveum Command Reference](https://pve.proxmox.com/pve-docs/pveum.1.html) - User management commands
+- [pvesm Command Reference](https://pve.proxmox.com/pve-docs/pvesm.1.html) - Storage management commands
+
+### Terraform Integration
 - [Terraform Proxmox Provider](https://registry.terraform.io/providers/Telmate/proxmox/latest/docs)
+
+### Additional Administration Resources
+- [Proxmox VE Administration Guide](https://pve.proxmox.com/pve-docs/pve-admin-guide.html) - Comprehensive administration manual
+- [Proxmox VE Installation Guide](https://pve.proxmox.com/pve-docs/pve-installation.html) - Installation procedures
