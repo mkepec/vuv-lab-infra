@@ -1,33 +1,34 @@
-# Production VMs Configuration - Using VM Module
+# Test VMs Configuration - Using Shared VM Module
 # Single Subnet Approach (192.168.1.x)
 
-# Production VM Configuration Map
+# Test VM Configuration Map
 locals {
-  production_vms = {
-    "lab-vm-1" = {
-      description = "Lab VM for student workspaces"
+  test_vms = {
+    "lab-test-vm-1" = {
+      description = "Test VM for development and testing"
       cpu_cores   = 2
       memory      = 2048
-      disk_size   = 25
+      disk_size   = 20
       # Static IP Configuration (comment out for DHCP)
       # ip_address  = "192.168.1.110/24"
     }
-    "service-vm-1" = {
-      description = "Service VM for infrastructure services"
-      cpu_cores   = 2
-      memory      = 4096
-      disk_size   = 30
-      # Static IP Configuration (comment out for DHCP)
-      # ip_address  = "192.168.1.120/24"
-    }
+    # Uncomment for second test VM
+    # "lab-test-vm-2" = {
+    #   description = "Second test VM"
+    #   cpu_cores   = 1
+    #   memory      = 1024
+    #   disk_size   = 15
+    #   # Static IP Configuration (comment out for DHCP)
+    #   # ip_address  = "192.168.1.111/24"
+    # }
   }
 }
 
-# Create Production VMs using the shared VM module
-module "production_vms" {
+# Create Test VMs using the shared VM module
+module "test_vms" {
   source = "../modules/vm"
 
-  for_each = local.production_vms
+  for_each = local.test_vms
 
   # VM Identity
   vm_name        = each.key
@@ -56,7 +57,7 @@ module "production_vms" {
   ci_password     = var.vm_password
   ssh_public_keys = var.ssh_public_key
 
-  # Enable serial console for debugging
+  # Enable guest agent and serial console for better management
+  enable_agent          = true
   enable_serial_console = true
-  enable_agent         = false
 }

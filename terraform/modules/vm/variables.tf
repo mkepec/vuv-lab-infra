@@ -103,7 +103,7 @@ variable "ssh_public_keys" {
 variable "enable_agent" {
   description = "Enable QEMU guest agent"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "enable_serial_console" {

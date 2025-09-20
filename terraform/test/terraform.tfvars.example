@@ -1,6 +1,6 @@
 # Proxmox connection settings
 # Copy this file to terraform.tfvars and fill in your values
-proxmox_host = "192.168.1.91"         # Your Proxmox server IP
+proxmox_host = "192.168.1.190"        # Your Proxmox server IP
 proxmox_node = "pve"                  # Your Proxmox node name
 
 # API token (from Proxmox setup guide)

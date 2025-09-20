@@ -1,35 +1,35 @@
-# Production LXC Containers Configuration - Using Shared LXC Module
+# Test LXC Containers Configuration - Using Shared LXC Module
 # Single Subnet Approach (192.168.1.x)
 
-# Production LXC Configuration Map
+# Test LXC Configuration Map
 locals {
-  production_lxc = {
-    "dns-server" = {
-      description = "BIND DNS server container"
+  test_lxc = {
+    "lab-test-lxc-1" = {
+      description = "First test LXC container"
       cpu_cores   = 1
       memory      = 512
       disk_size   = "8G"
       # Static IP Configuration (comment out for DHCP)
       # ip_address  = "192.168.1.170/24"
-      tags        = "production,dns,infrastructure"
+      tags        = "test,development"
     }
-    "monitoring-agent" = {
-      description = "Monitoring and metrics collection container"
+    "lab-test-lxc-2" = {
+      description = "Second test LXC container"
       cpu_cores   = 1
-      memory      = 768
-      disk_size   = "10G"
+      memory      = 512
+      disk_size   = "8G"
       # Static IP Configuration (comment out for DHCP)
       # ip_address  = "192.168.1.171/24"
-      tags        = "production,monitoring,infrastructure"
+      tags        = "test,development"
     }
   }
 }
 
-# Create Production LXC containers using the shared LXC module
-module "production_lxc" {
+# Create Test LXC containers using the shared LXC module
+module "test_lxc" {
   source = "../modules/lxc"  # 👈 Using shared LXC module
 
-  for_each = local.production_lxc
+  for_each = local.test_lxc
 
   # Container Identity
   container_name = each.key
