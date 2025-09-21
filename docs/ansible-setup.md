@@ -32,8 +32,8 @@ Before starting, verify you have completed previous steps:
 # Update package list
 sudo apt update
 
-# Install Ansible
-sudo apt install ansible -y
+# Install Ansible and sshpass (required for password authentication)
+sudo apt install ansible sshpass -y
 
 # Verify installation (should show version 2.15+)
 ansible --version
@@ -44,7 +44,7 @@ ansible --version
 ```bash
 # In WSL2 terminal
 sudo apt update
-sudo apt install ansible python3-pip -y
+sudo apt install ansible sshpass python3-pip -y
 
 # Verify installation
 ansible --version
@@ -55,8 +55,9 @@ ansible --version
 ```bash
 # Using Homebrew
 brew install ansible
+brew install hudochenkov/sshpass/sshpass
 
-# Or using pip
+# Or using pip (you may need to install sshpass separately)
 pip3 install ansible
 
 # Verify installation
@@ -423,6 +424,22 @@ export ANSIBLE_HOST_KEY_CHECKING=False
 ```
 
 ### Bootstrap Issues
+
+**Problem**: `to use the 'ssh' connection type with passwords or pkcs11_provider, you must install the sshpass program`
+
+**Cause**: Missing `sshpass` package required for password authentication
+
+**Solution**: Install sshpass package
+```bash
+# Ubuntu/Debian/WSL2
+sudo apt install sshpass -y
+
+# macOS with Homebrew
+brew install hudochenkov/sshpass/sshpass
+
+# Then retry bootstrap
+ansible-playbook -u ubuntu -kK playbooks/bootstrap.yml
+```
 
 **Problem**: `Invalid/incorrect password` during bootstrap
 

@@ -75,8 +75,9 @@ resource "proxmox_vm_qemu" "gns3_server" {
   ipconfig0 = "ip=${var.network_base}.${20 + count.index}/24,gw=${var.network_gateway}"
   
   # User configuration
-  ciuser  = "ubuntu"
-  sshkeys = var.ssh_public_key
+  ciuser    = "ubuntu"
+  cipasswd  = "password123"  # Console login password
+  sshkeys   = var.ssh_public_key
   
   # Enable QEMU guest agent for better management
   agent = 1
