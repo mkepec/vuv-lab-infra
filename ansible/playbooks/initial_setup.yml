@@ -60,5 +60,12 @@
           - nano
           - less
           - jq
+          - qemu-guest-agent
         state: present
+
+    - name: Enable and start QEMU Guest Agent
+      systemd:
+        name: qemu-guest-agent
+        enabled: yes
+        state: started
         

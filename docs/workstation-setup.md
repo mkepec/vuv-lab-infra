@@ -186,6 +186,21 @@ Similar to Windows manual installation, but download macOS versions of each tool
 
 ### Generate SSH Key Pair
 
+**Windows (PowerShell):**
+```powershell
+# Check if .ssh directory exists, create if needed
+if (!(Test-Path "$env:USERPROFILE\.ssh")) {
+    mkdir "$env:USERPROFILE\.ssh"
+}
+
+# Generate ED25519 key (recommended for security and performance)
+ssh-keygen -t ed25519 -C "vuv-lab-proxmox" -f "$env:USERPROFILE\.ssh\proxmox_key"
+
+# If ED25519 is not supported (older systems)
+ssh-keygen -t rsa -b 4096 -C "vuv-lab-proxmox" -f "$env:USERPROFILE\.ssh\proxmox_key"
+```
+
+**Linux/macOS:**
 ```bash
 # Generate ED25519 key (recommended for security and performance)
 ssh-keygen -t ed25519 -C "vuv-lab-proxmox" -f ~/.ssh/proxmox_key
@@ -201,23 +216,31 @@ ssh-keygen -t rsa -b 4096 -C "vuv-lab-proxmox" -f ~/.ssh/proxmox_key
 
 ### Secure Key Permissions
 
+**Windows (PowerShell):**
+```powershell
+# Set proper permissions for private key (read-only for current user)
+icacls "$env:USERPROFILE\.ssh\proxmox_key" /inheritance:r /grant "$env:USERNAME`:R"
+```
+
+**Linux/macOS:**
 ```bash
-# Set proper permissions (Unix/Linux/macOS)
+# Set proper permissions
 chmod 600 ~/.ssh/proxmox_key      # Private key: read/write for owner only
 chmod 644 ~/.ssh/proxmox_key.pub  # Public key: readable by others
-
-# On Windows (PowerShell)
-icacls $env:USERPROFILE\.ssh\proxmox_key /inheritance:r /grant:r "$env:USERNAME:R"
 ```
 
 ### Display Public Key
 
+**Windows (PowerShell):**
+```powershell
+# Display public key (you'll need this for Terraform configuration)
+type "$env:USERPROFILE\.ssh\proxmox_key.pub"
+```
+
+**Linux/macOS:**
 ```bash
 # Display public key (you'll need this for Terraform configuration)
 cat ~/.ssh/proxmox_key.pub
-
-# On Windows
-type %USERPROFILE%\.ssh\proxmox_key.pub
 ```
 
 **Save this public key!** You'll paste it into your `terraform.tfvars` file.
@@ -234,11 +257,11 @@ terraform version
 git --version
 git config --global --list
 
+# Test SSH key (Windows PowerShell)
+ssh-keygen -l -f "$env:USERPROFILE\.ssh\proxmox_key.pub"
+
 # Test SSH key (Linux/macOS)
 ssh-keygen -l -f ~/.ssh/proxmox_key.pub
-
-# Test SSH key (Windows)
-ssh-keygen -l -f "%USERPROFILE%\.ssh\proxmox_key.pub"
 ```
 
 ### Initial Git Configuration (Optional)
@@ -332,8 +355,8 @@ chmod 700 ~/.ssh
 chmod 600 ~/.ssh/proxmox_key
 chmod 644 ~/.ssh/proxmox_key.pub
 
-# Windows: Use icacls to set proper permissions
-icacls %USERPROFILE%\.ssh /inheritance:r /grant:r "%USERNAME%:F"
+# Windows PowerShell: Use icacls to set proper permissions
+icacls "$env:USERPROFILE\.ssh" /inheritance:r /grant "$env:USERNAME`:F"
 ```
 
 #### Git SSL Certificate Issues

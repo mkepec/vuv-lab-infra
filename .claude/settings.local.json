@@ -11,7 +11,9 @@
       "Read(//c/temp/terraform-provider-proxmox/**)",
       "Bash(terraform:*)",
       "Bash(ssh:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "mcp__task-master-ai__get_tasks",
+      "mcp__task-master-ai__get_task"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -715,11 +715,227 @@ terraform plan    # Review what will be created
 terraform apply   # Deploy test VM
 
 # Verify deployment
-terraform output  # Show VM IP and SSH command
-
-# Clean up when done
-terraform destroy
+terraform output  # Show VM IP and connection info
 ```
+
+### Test VM Access and Functionality
+
+After deployment, test that everything works correctly:
+
+#### Step 1: Get VM Information
+
+**Windows (PowerShell):**
+```powershell
+# Get VM IP address and SSH command
+terraform output
+
+# Note the VM IP for testing
+```
+
+**Linux/macOS:**
+```bash
+# Get VM IP address and SSH command
+terraform output
+
+# Note the VM IP for testing
+```
+
+#### Step 2: Test SSH Access
+
+**Windows (PowerShell):**
+```powershell
+# SSH into the test VM (replace <VM_IP> with actual IP from terraform output)
+ssh -i "$env:USERPROFILE\.ssh\proxmox_key" ubuntu@<VM_IP>
+
+# Alternative: Use password if SSH key fails
+# Username: ubuntu
+# Password: password123 (default from variables.tf)
+```
+
+**Linux/macOS:**
+```bash
+# SSH into the test VM (replace <VM_IP> with actual IP from terraform output)
+ssh -i ~/.ssh/proxmox_key ubuntu@<VM_IP>
+
+# Alternative: Use password if SSH key fails
+# Username: ubuntu
+# Password: password123 (default from variables.tf)
+```
+
+#### Step 3: Test Basic VM Functionality
+
+Once connected via SSH, test these basic functions:
+
+```bash
+# Test system information
+uptime
+df -h
+free -h
+
+# Test sudo access
+sudo whoami    # Should return: root
+
+# Test package management
+sudo apt update
+sudo apt list --upgradable
+
+# Test network connectivity
+ping -c 3 google.com
+```
+
+#### Step 4: Test QEMU Guest Agent (Optional - For Manual Testing)
+
+The QEMU Guest Agent improves VM management and monitoring. **Note**: This will be automatically installed later by Ansible, but you can test it manually now if desired:
+
+```bash
+# Install QEMU Guest Agent (optional - Ansible will do this later)
+sudo apt install qemu-guest-agent -y
+
+# Enable and start the service
+sudo systemctl enable qemu-guest-agent
+sudo systemctl start qemu-guest-agent
+
+# Verify it's running
+sudo systemctl status qemu-guest-agent
+
+# Test guest agent communication (should show no errors)
+sudo qemu-ga --version
+```
+
+**Expected Results:**
+- ✅ Service starts without errors
+- ✅ Status shows "active (running)"
+- ✅ Proxmox web interface shows improved VM information
+
+**💡 Note**: When you move to Ansible configuration management, the QEMU Guest Agent will be automatically installed on all VMs via the `initial_setup.yml` playbook.
+
+#### Step 5: Test Cloud-Init Configuration
+
+Verify that cloud-init configured the VM properly:
+
+```bash
+# Check cloud-init status
+sudo cloud-init status
+
+# Should show: status: done
+
+# Review cloud-init logs
+sudo cloud-init analyze show
+
+# Check if SSH keys were deployed correctly
+cat ~/.ssh/authorized_keys
+```
+
+#### Step 6: Verify Terraform Integration
+
+Test that Terraform can manage the VM:
+
+```bash
+# Exit the SSH session
+exit
+```
+
+**Back on your workstation:**
+
+**Windows (PowerShell):**
+```powershell
+# Test terraform show command
+terraform show
+
+# Verify VM is in terraform state
+terraform state list
+
+# Test that terraform can still communicate with the VM
+terraform refresh
+```
+
+**Linux/macOS:**
+```bash
+# Test terraform show command
+terraform show
+
+# Verify VM is in terraform state
+terraform state list
+
+# Test that terraform can still communicate with the VM
+terraform refresh
+```
+
+#### Step 7: Clean Up Test Resources
+
+**⚠️ Important**: Only destroy when testing is complete!
+
+```bash
+# Destroy test VM (this is permanent!)
+terraform destroy
+
+# Confirm destruction when prompted
+# Type: yes
+```
+
+**Expected Result:**
+- ✅ VM is removed from Proxmox
+- ✅ No errors during destruction
+- ✅ `terraform state list` shows no resources
+
+### Troubleshooting Test Issues
+
+#### SSH Connection Fails
+
+**Issue**: `ssh: connect to host <IP> port 22: Connection refused`
+
+**Solutions:**
+1. **Wait for cloud-init**: VM may still be booting
+   ```bash
+   # Wait 2-3 minutes, then try again
+   ssh -i ~/.ssh/proxmox_key ubuntu@<VM_IP>
+   ```
+
+2. **Check VM status in Proxmox console**:
+   - Open Proxmox web interface
+   - Navigate to your test VM
+   - Click "Console" and check if VM is fully booted
+
+3. **Use VM console login**:
+   - Username: `ubuntu`
+   - Password: `password123`
+   - Then check SSH service: `sudo systemctl status ssh`
+
+#### QEMU Guest Agent Installation Fails
+
+**Issue**: Package not found or service fails to start
+
+**Solutions:**
+```bash
+# Update package lists first
+sudo apt update
+
+# Install with verbose output
+sudo apt install -y qemu-guest-agent
+
+# If service fails to start, check logs
+sudo journalctl -u qemu-guest-agent -f
+```
+
+#### Terraform Refresh Fails
+
+**Issue**: Terraform can't communicate with Proxmox
+
+**Solutions:**
+1. **Check API token**:
+   ```bash
+   # Verify token is still valid
+   curl -k -H 'Authorization: PVEAPIToken=terraform@pve!terraform-token=YOUR_TOKEN' \
+     https://YOUR_PROXMOX_IP:8006/api2/json/version
+   ```
+
+2. **Check network connectivity**:
+   ```bash
+   # Test connection to Proxmox
+   ping YOUR_PROXMOX_IP
+   ```
+
+✅ **Success Criteria**: All tests pass, SSH works, QEMU Guest Agent is running, and terraform destroy completes cleanly.
 
 ### Working with Other Services
 
@@ -757,6 +973,37 @@ terraform validate
 # Format code nicely
 terraform fmt
 ```
+
+## 🎯 What's Next After Terraform Testing?
+
+**Congratulations!** If you've successfully completed the VM testing above, your Terraform infrastructure foundation is working perfectly. 
+
+### Next Phase: Configuration Management with Ansible
+
+With working VMs, you're ready to move to **automated configuration management** using Ansible:
+
+**Continue to:** **[Ansible Setup Guide](ansible-setup.md)**
+
+**What Ansible will do:**
+- ✅ **Bootstrap VMs** - Create management users and deploy SSH keys
+- ✅ **Security hardening** - Configure firewalls, SSH settings, and system security
+- ✅ **System configuration** - Install packages, configure services
+- ✅ **Service deployment** - Deploy GNS3, DNS, monitoring, and other lab services
+
+### Alternative: Return to Getting Started
+
+If you prefer the step-by-step approach:
+
+**Continue to:** **[Getting Started Guide - Step 5](getting-started.md#step-5-ansible-configuration-management)**
+
+### Your Current Progress
+
+You have now completed:
+- ✅ **Proxmox VE setup** - Hypervisor configured with API access
+- ✅ **Workstation setup** - Tools installed and SSH keys generated  
+- ✅ **Terraform foundation** - Infrastructure provisioning working
+- ✅ **VM deployment** - Can create, access, and destroy VMs
+- ⬇️ **Next: Ansible** - Automated configuration management
 
 ## Best Practices
 
