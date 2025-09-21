@@ -1,0 +1,162 @@
+---
+# Security hardening playbook
+# Applies essential security measures including firewall and SSH configuration
+
+- name: Security Hardening
+  hosts: all
+  gather_facts: yes
+  become: yes
+  
+  vars:
+    ssh_port: 22
+    unnecessary_services:
+      - avahi-daemon
+      - cups
+      - bluetooth
+    
+  tasks:
+    - name: Install and configure UFW firewall
+      apt:
+        name: ufw
+        state: present
+        
+    - name: Set UFW default policies
+      ufw:
+        direction: "{{ item.direction }}"
+        policy: "{{ item.policy }}"
+      loop:
+        - { direction: 'incoming', policy: 'deny' }
+        - { direction: 'outgoing', policy: 'allow' }
+        - { direction: 'routed', policy: 'deny' }
+        
+    - name: Allow SSH through UFW
+      ufw:
+        rule: allow
+        port: "{{ ssh_port }}"
+        proto: tcp
+        comment: "SSH Access"
+        
+    - name: Enable UFW firewall
+      ufw:
+        state: enabled
+        
+    - name: Backup SSH configuration
+      copy:
+        src: /etc/ssh/sshd_config
+        dest: /etc/ssh/sshd_config.backup
+        remote_src: yes
+        backup: yes
+        
+    - name: Configure SSH security settings
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        backup: yes
+      loop:
+        - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
+        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' }
+        - { regexp: '^#?PermitEmptyPasswords', line: 'PermitEmptyPasswords no' }
+        - { regexp: '^#?PubkeyAuthentication', line: 'PubkeyAuthentication yes' }
+        - { regexp: '^#?AuthorizedKeysFile', line: 'AuthorizedKeysFile .ssh/authorized_keys' }
+        - { regexp: '^#?MaxAuthTries', line: 'MaxAuthTries 3' }
+        - { regexp: '^#?LoginGraceTime', line: 'LoginGraceTime 60' }
+        - { regexp: '^#?ClientAliveInterval', line: 'ClientAliveInterval 300' }
+        - { regexp: '^#?ClientAliveCountMax', line: 'ClientAliveCountMax 2' }
+        - { regexp: '^#?X11Forwarding', line: 'X11Forwarding no' }
+        - { regexp: '^#?Protocol', line: 'Protocol 2' }
+      notify: restart ssh
+      
+    - name: Ensure rsyslog is installed and running
+      systemd:
+        name: rsyslog
+        state: started
+        enabled: yes
+        
+    - name: Configure fail2ban for SSH protection
+      apt:
+        name: fail2ban
+        state: present
+        
+    - name: Configure fail2ban SSH jail
+      copy:
+        dest: /etc/fail2ban/jail.local
+        content: |
+          [DEFAULT]
+          bantime = 3600
+          findtime = 600
+          maxretry = 3
+          
+          [sshd]
+          enabled = true
+          port = {{ ssh_port }}
+          filter = sshd
+          logpath = /var/log/auth.log
+          maxretry = 3
+          bantime = 3600
+        backup: yes
+      notify: restart fail2ban
+      
+    - name: Start and enable fail2ban
+      systemd:
+        name: fail2ban
+        state: started
+        enabled: yes
+        
+    - name: Check if unnecessary services exist
+      systemd:
+        name: "{{ item }}"
+      register: service_check
+      loop: "{{ unnecessary_services }}"
+      ignore_errors: yes
+      no_log: yes
+      
+    - name: Disable unnecessary services for security
+      systemd:
+        name: "{{ item.item }}"
+        state: stopped
+        enabled: no
+      loop: "{{ service_check.results }}"
+      when: item.status is defined and item.status.LoadState == "loaded"
+      ignore_errors: yes
+      no_log: yes
+      
+    - name: Set strong permissions on sensitive files
+      file:
+        path: "{{ item }}"
+        mode: '0600'
+        owner: root
+        group: root
+      loop:
+        - /etc/ssh/sshd_config
+        - /etc/shadow
+        - /etc/gshadow
+      ignore_errors: yes
+      
+    - name: Check UFW status
+      command: ufw status
+      register: ufw_status
+      changed_when: false
+      
+    - name: Check fail2ban status  
+      command: fail2ban-client status sshd
+      register: fail2ban_status
+      changed_when: false
+      ignore_errors: yes
+      
+    - name: Check SSH service status
+      systemd:
+        name: ssh
+      register: ssh_service_status
+        
+          
+  handlers:
+    - name: restart ssh
+      systemd:
+        name: ssh
+        state: restarted
+        
+    - name: restart fail2ban
+      systemd:
+        name: fail2ban
+        state: restarted

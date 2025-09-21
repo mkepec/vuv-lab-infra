@@ -1,0 +1,64 @@
+---
+# Simple initial setup playbook for VUV Lab Infrastructure
+# Tests connectivity and gathers basic system information
+
+- name: Initial Setup - Connectivity and System Info
+  hosts: all
+  gather_facts: yes
+  become: yes
+  
+  tasks:
+    - name: Test connectivity with ping
+      ping:
+      
+          
+    - name: Verify ansible user exists and has sudo access
+      command: id ansible
+      register: user_check
+      changed_when: false
+      
+    - name: Test sudo access
+      command: sudo whoami
+      register: sudo_check
+      become_user: ansible
+      changed_when: false
+      
+          
+    - name: Check SSH service status
+      systemd:
+        name: ssh
+      register: ssh_status
+      
+        
+    - name: Get system uptime
+      command: uptime
+      register: uptime_result
+      changed_when: false
+      
+        
+    - name: Update package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      
+    - name: Install essential tools and packages
+      apt:
+        name:
+          - vim
+          - htop
+          - git
+          - curl
+          - wget
+          - tree
+          - unzip
+          - net-tools
+          - dnsutils
+          - tcpdump
+          - rsync
+          - screen
+          - tmux
+          - nano
+          - less
+          - jq
+        state: present
+        

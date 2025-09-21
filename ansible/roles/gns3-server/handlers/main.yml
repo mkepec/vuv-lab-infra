@@ -1,0 +1,10 @@
+---
+# handlers file for gns3-server
+- name: Reload systemd
+  command: systemctl daemon-reload
+
+- name: Restart GNS3 service
+  systemd:
+    name: gns3server
+    enabled: yes
+    state: restarted

@@ -1,0 +1,113 @@
+---
+# tasks file for gns3-server
+- name: Add GNS3 PPA
+  apt_repository:
+    repo: ppa:gns3/ppa
+    state: present
+    update_cache: yes
+
+- name: Install GNS3 dependencies (without Docker)
+  apt:
+    name:
+      - gns3-server
+      - qemu-kvm
+      - libvirt-daemon-system
+      - libvirt-clients
+      - virtinst
+      - bridge-utils
+      - ubridge
+      - python3-pip
+      - python3-venv
+      - dynamips
+    state: present
+    update_cache: yes
+
+- name: Ensure gns3 user exists
+  user:
+    name: "{{ gns3_server_user }}"
+    groups: kvm,libvirt,ubridge
+    append: yes
+    shell: /bin/bash
+
+- name: Ensure /etc/gns3 directory exists
+  file:
+    path: /etc/gns3
+    state: directory
+    owner: "{{ gns3_server_user }}"
+    group: "{{ gns3_server_user }}"
+    mode: "0755"
+
+- name: Ensure controller config exists and is writable
+  file:
+    path: /etc/gns3/gns3_controller.conf
+    state: touch
+    owner: "{{ gns3_server_user }}"
+    group: "{{ gns3_server_user }}"
+    mode: "0644"
+
+- name: Deploy gns3 config
+  template:
+    src: gns3_server.conf.j2
+    dest: /etc/gns3/gns3_server.conf
+    owner: "{{ gns3_server_user }}"
+    group: "{{ gns3_server_user }}"
+    mode: '0644'
+
+- name: Create directories for projects and images
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ gns3_server_user }}"
+    group: "{{ gns3_server_user }}"
+    mode: "0755"
+  loop:
+    - "{{ gns3_project_path }}"
+    - "{{ gns3_image_path }}"
+
+- name: Deploy systemd service
+  template:
+    src: gns3server.service.j2
+    dest: /etc/systemd/system/gns3server.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+
+- name: Enable and start GNS3 service
+  systemd:
+    name: gns3server
+    enabled: yes
+    state: started
+
+- name: Allow GNS3 server port through firewall
+  ufw:
+    rule: allow
+    port: "{{ gns3_listen_port }}"
+    proto: tcp
+    comment: "GNS3 Server Web Interface"
+
+- name: Wait for GNS3 service to start
+  wait_for:
+    port: "{{ gns3_listen_port }}"
+    timeout: 30
+
+- name: Verify GNS3 API is responding
+  uri:
+    url: "http://127.0.0.1:{{ gns3_listen_port }}/v2/version"
+    timeout: 10
+  register: gns3_api_check
+  failed_when: false
+
+- name: Display GNS3 deployment status
+  debug:
+    msg:
+      - "✅ GNS3 server deployed successfully"
+      - "🌐 Web interface: http://{{ ansible_default_ipv4.address }}:{{ gns3_listen_port }}"
+      - "📁 Projects: {{ gns3_project_path }}"
+      - "💾 Images: {{ gns3_image_path }}"
+      - "🔧 Service status: {{ 'API responding' if gns3_api_check.status == 200 else 'API check failed - check logs' }}"

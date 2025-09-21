@@ -1,0 +1,50 @@
+# VUV Lab Infrastructure - Production Inventory
+# Update IP addresses to match your Terraform deployment
+
+# DNS and Proxy Infrastructure
+[management]
+# Uncomment and update IPs when deploying:
+# dns-server ansible_host=192.168.1.10
+# traefik-proxy ansible_host=192.168.1.11
+
+# Network Simulation Platform
+[gns3]
+# Uncomment and update IP when deploying:
+gns3-1 ansible_host=192.168.1.231
+# gns3-2 ansible_host=192.168.1.232  # Future expansion
+
+# Monitoring and Observability
+[monitoring]
+# Uncomment and update IPs when deploying:
+# prometheus ansible_host=192.168.1.30
+# grafana ansible_host=192.168.1.31
+
+# Container Platform Hosts
+[docker_hosts]
+# Uncomment and update IPs when deploying:
+# docker-host-01 ansible_host=192.168.1.40
+# docker-host-02 ansible_host=192.168.1.41
+
+# Testing Environment (for development/testing)
+[test]
+# Add test VMs here for development:
+test-ubuntu ansible_host=192.168.1.38
+
+# Logical Service Groups
+[core_infrastructure:children]
+management
+monitoring
+
+[lab_services:children]
+gns3
+docker_hosts
+
+# All production VMs
+[production:children]
+core_infrastructure
+lab_services
+
+# All managed VMs (production + test)
+[all_vms:children]
+production
+test

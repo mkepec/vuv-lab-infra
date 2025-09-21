@@ -1,0 +1,12 @@
+[Unit]
+Description=GNS3 Server
+After=network.target
+
+[Service]
+Type=simple
+User={{ gns3_server_user }}
+ExecStart=/usr/bin/gns3server --config /etc/gns3/gns3_server.conf
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,6 @@
+---
+- name: Configure GNS3 server
+  hosts: gns3
+  become: yes
+  roles:
+    - gns3-server

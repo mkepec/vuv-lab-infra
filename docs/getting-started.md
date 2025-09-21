@@ -25,15 +25,24 @@ Before starting, ensure you have:
 
 ## Process Overview
 
-Here's what we'll accomplish:
+Here's the complete infrastructure deployment workflow:
 
+### Phase 1: Infrastructure Foundation
 1. **[Prepare Proxmox VE](#step-1-prepare-proxmox-ve)** - Set up secure access for Terraform
 2. **[Set up your workstation](#step-2-workstation-setup)** - Install and configure required tools
 3. **[Configure Terraform](#step-3-terraform-configuration)** - Create infrastructure code
-4. **[Deploy and test](#step-4-first-deployment)** - Verify everything works end-to-end
-5. **[Validation](#validation-checklist)** - Comprehensive testing before moving forward
+4. **[Deploy and test](#step-4-first-deployment)** - Verify infrastructure works end-to-end
 
-**Expected time**: 1-2 hours for first-time setup
+### Phase 2: Configuration Management
+5. **[Configure VMs with Ansible](#step-5-ansible-configuration-management)** - Set up automated configuration management
+6. **[Validation](#validation-checklist)** - Comprehensive testing before service deployment
+
+### Phase 3: Service Deployment
+7. **[Deploy Services](services-deployment.md)** - GNS3, monitoring, DNS, and other lab services
+
+**Expected time**: 2-3 hours for complete setup (Phase 1-2)
+
+> 💡 **Note**: This guide covers **Phase 1-2** (infrastructure + configuration management). Service deployment guides are separate.
 
 ## Step 1: Prepare Proxmox VE
 
@@ -243,11 +252,150 @@ terraform destroy
 # Type 'yes' when prompted
 ```
 
-> 💡 **What we just proved**: Your complete setup works! Terraform can authenticate to Proxmox, clone templates, create VMs, and you can access them securely.
+> 💡 **What we just proved**: Your infrastructure foundation works! Terraform can authenticate to Proxmox, clone templates, create VMs, and you can access them securely.
 
-## Validation Checklist
+---
 
-Use this checklist to confirm everything is working before moving to advanced configurations:
+## 🎯 **What's Next: Configuration Management**
+
+**Congratulations!** You now have working infrastructure, but the VMs are "blank slates" that need configuration. This is where **Ansible** comes in.
+
+### Why Configuration Management?
+
+Your VMs currently have:
+- ✅ Basic Ubuntu installation
+- ✅ SSH access with your key
+- ❌ No application software
+- ❌ No security hardening  
+- ❌ No service configuration
+- ❌ No team access management
+
+**Ansible will configure your VMs** with proper users, security settings, and prepare them for service deployment.
+
+### Ready for Phase 2?
+
+**Continue to: [Step 5: Ansible Configuration Management](#step-5-ansible-configuration-management)** ⬇️
+
+---
+
+## Step 5: Ansible Configuration Management
+
+Now that you have working VM deployments, it's time to set up configuration management with Ansible.
+
+> 📖 **Complete Reference**: See [Ansible Setup Guide](ansible-setup.md) for detailed installation, team SSH key management, and troubleshooting.
+
+### 5.1 Install Ansible
+
+**Ubuntu/Debian:**
+```bash
+sudo apt update && sudo apt install ansible -y
+```
+
+**Windows with WSL2:**
+```bash
+sudo apt install ansible python3-pip -y
+```
+
+**macOS:**
+```bash
+brew install ansible
+```
+
+**Windows with Chocolatey:**
+```powershell
+choco install ansible -y
+```
+
+### 5.2 Prepare for Configuration Management
+
+```bash
+# Navigate to the ansible directory
+cd ansible
+
+# Deploy some VMs for configuration (using your working Terraform)
+cd ../terraform
+terraform apply  # Deploy a few VMs for testing
+
+# Get VM IP addresses
+terraform output vm_ips
+```
+
+### 5.3 Bootstrap VMs for Ansible
+
+Update the inventory with your actual VM IPs:
+
+```bash
+# Edit inventory with your VM IPs
+nano inventory/hosts
+
+# Example entry:
+# gns3-server ansible_host=192.168.1.20
+```
+
+Run the bootstrap playbook to create the `lab` user:
+
+```bash
+# Bootstrap VMs (creates 'lab' user with passwordless sudo)
+ansible-playbook -k playbooks/bootstrap.yml
+
+# When prompted, enter password for your initial VM user (e.g., ubuntu)
+```
+
+### 5.4 Verify Ansible Management
+
+```bash
+# Test connectivity to all managed VMs
+ansible all -m ping
+
+# Should return SUCCESS for all hosts
+```
+
+✅ **Success**: Your VMs are now ready for configuration management!
+
+### 5.5 Apply Basic Configuration
+
+```bash
+# Run system updates on all VMs
+ansible-playbook playbooks/system_updates.yml
+
+# Apply security hardening
+ansible-playbook playbooks/security_hardening.yml
+```
+
+> 💡 **What we just accomplished**: VMs are now configured with proper user accounts, security settings, and ready for service deployment.
+
+---
+
+## 🎯 **Ready for Service Deployment!**
+
+**Excellent work!** You now have a complete infrastructure and configuration management foundation.
+
+### What You've Built
+
+Your lab infrastructure now includes:
+- ✅ **Secure Proxmox environment** with API access
+- ✅ **Infrastructure as Code** with Terraform
+- ✅ **Configuration Management** with Ansible  
+- ✅ **Team collaboration** capabilities
+- ✅ **Security hardening** applied to all VMs
+- ✅ **Standardized VM management** via the `lab` user
+
+### Next Steps: Service Deployment
+
+You're now ready to deploy actual lab services:
+- **GNS3 Server** for network simulation
+- **DNS Infrastructure** for name resolution
+- **Monitoring Stack** (Prometheus + Grafana)
+- **Docker Hosts** for containerized services
+- **Traefik Proxy** for reverse proxy and load balancing
+
+> 📖 **Service Guides**: Check the `docs/` directory for service-specific deployment guides.
+
+---
+
+## Comprehensive Validation Checklist
+
+Use this checklist to confirm everything is working before service deployment:
 
 > 📖 **Complete Validation**: For comprehensive testing procedures, see [Validation & Testing Guide](validation-testing.md)
 
@@ -264,6 +412,13 @@ Use this checklist to confirm everything is working before moving to advanced co
 - [ ] SSH access to deployed VM works: `ssh -i ~/.ssh/proxmox_key ubuntu@<vm-ip>`
 - [ ] `terraform destroy` cleanly removes test resources
 
+### Configuration Management
+- [ ] Ansible installed and version 2.15+ verified
+- [ ] VM inventory updated with actual IP addresses
+- [ ] Bootstrap playbook creates `lab` user successfully
+- [ ] `ansible all -m ping` returns SUCCESS for all VMs
+- [ ] System updates and security hardening applied
+
 ### Security & Access
 - [ ] API token is saved securely (not in version control)
 - [ ] SSH private key is protected (not in version control)
@@ -274,11 +429,13 @@ Use this checklist to confirm everything is working before moving to advanced co
 
 ## What You've Accomplished
 
-🎉 **You now have a working Infrastructure-as-Code setup that can:**
+🎉 **You now have a complete Infrastructure-as-Code setup that can:**
 
 - **Provision VMs** on demand using Terraform
+- **Configure systems** automatically using Ansible
 - **Secure access** via SSH keys and API tokens  
 - **Reproducible deployments** through version-controlled configuration
+- **Team collaboration** with shared SSH keys and standardized processes
 - **Clean resource management** with proper lifecycle controls
 
 ## Next Steps
@@ -289,7 +446,8 @@ With your foundation working, you can now:
 2. **🔧 Customize**: Modify VM specifications, create multiple VMs, or different templates
 3. **🌐 Networking**: Set up advanced network configurations and VLANs
 4. **📦 Services**: Deploy actual services like GNS3, Docker hosts, or monitoring
-5. **⚙️ Automation**: Add Ansible for configuration management
+5. **👥 Team Setup**: Configure additional team members' SSH keys for collaborative access
+6. **🔄 CI/CD**: Implement automated testing and deployment workflows
 
 ## Getting Help
 

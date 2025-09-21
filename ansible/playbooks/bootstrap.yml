@@ -1,0 +1,68 @@
+---
+- name: Bootstrap VUV Lab VMs with ansible user
+  hosts: all
+  become: yes
+  vars:
+    ansible_user_name: ansible
+    
+  tasks:
+    - name: Create ansible user
+      user:
+        name: "{{ ansible_user_name }}"
+        groups: sudo
+        shell: /bin/bash
+        create_home: yes
+        comment: "Ansible automation user"
+
+    - name: Ensure .ssh directory exists for ansible user
+      file:
+        path: "/home/{{ ansible_user_name }}/.ssh"
+        state: directory
+        owner: "{{ ansible_user_name }}"
+        group: "{{ ansible_user_name }}"
+        mode: '0700'
+
+    - name: Allow ansible user to run sudo without password
+      copy:
+        dest: "/etc/sudoers.d/{{ ansible_user_name }}"
+        content: "{{ ansible_user_name }} ALL=(ALL) NOPASSWD:ALL\n"
+        owner: root
+        group: root
+        mode: '0440'
+        validate: 'visudo -cf %s'
+
+    - name: Deploy SSH key for ansible user
+      authorized_key:
+        user: "{{ ansible_user_name }}"
+        state: present
+        key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/vuv-lab-key.pub') }}"
+        comment: "{{ lookup('env','USER') }}@{{ lookup('env','HOSTNAME') | default('workstation') }}"
+
+    - name: Test sudo access for ansible user
+      command: sudo -l -U {{ ansible_user_name }}
+      register: sudo_check
+      changed_when: false
+
+    - name: Verify ansible user can run sudo commands
+      become_user: "{{ ansible_user_name }}"
+      command: sudo whoami
+      register: whoami_test
+      changed_when: false
+
+    - name: Display bootstrap results
+      debug:
+        msg: |
+          Bootstrap completed successfully:
+          - User '{{ ansible_user_name }}' created with passwordless sudo
+          - SSH key deployed from ~/.ssh/vuv-lab-key.pub
+          - Ready for Ansible management
+          - Test connection: ssh {{ ansible_user_name }}@{{ ansible_default_ipv4.address }}
+          - Sudo test result: {{ whoami_test.stdout }}
+
+    - name: Verify SSH connectivity
+      wait_for:
+        host: "{{ ansible_default_ipv4.address }}"
+        port: 22
+        timeout: 10
+      delegate_to: localhost
+      become: no

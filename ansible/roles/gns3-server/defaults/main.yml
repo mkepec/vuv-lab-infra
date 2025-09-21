@@ -1,0 +1,28 @@
+---
+# defaults file for gns3-server
+
+# Basic GNS3 server configuration
+gns3_server_user: gns3
+gns3_project_path: /opt/gns3/projects
+gns3_image_path: /opt/gns3/images
+gns3_listen_host: 0.0.0.0
+gns3_listen_port: 3080
+gns3_enable_auth: False
+
+# Performance and resource management
+gns3_server_log_level: INFO
+gns3_server_images_path_writable: true
+gns3_server_projects_path_writable: true
+
+# University-specific settings
+gns3_auto_start_on_boot: true
+gns3_max_concurrent_projects: 10
+gns3_enable_console_binding: true
+
+# Security settings
+gns3_enable_cors: false
+gns3_cors_allowed_origins: []
+
+# Paths and storage
+gns3_log_path: /var/log/gns3
+gns3_config_backup_enabled: true

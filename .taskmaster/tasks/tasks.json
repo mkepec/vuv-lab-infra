@@ -9,7 +9,7 @@
         "testStrategy": "Verify repository creation and structure. Commit initial documentation files. Ensure team members can clone, commit, and push changes following the defined workflow.",
         "priority": "high",
         "dependencies": [],
-        "status": "not_started",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -22,7 +22,7 @@
         "dependencies": [
           1
         ],
-        "status": "not_started",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -35,8 +35,67 @@
         "dependencies": [
           2
         ],
-        "status": "not_started",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Initialize Ansible Project Structure and Configuration",
+            "description": "Create the foundational directory structure for Ansible and configure basic settings.",
+            "dependencies": [],
+            "details": "Create the `ansible/` directory at the project root. Inside `ansible/`, create `ansible.cfg` with basic configurations (e.g., inventory path, remote user `vuvadmin`, SSH connection type). Establish `ansible/playbooks/` and `ansible/roles/` directories for future organization.",
+            "status": "done",
+            "testStrategy": "Verify the creation of `ansible/`, `ansible/ansible.cfg`, `ansible/playbooks/`, and `ansible/roles/` directories. Confirm `ansible.cfg` contains essential settings like `inventory = ./inventory/hosts` and `remote_user = vuvadmin`."
+          },
+          {
+            "id": 2,
+            "title": "Develop Static Inventory and Integrate with Terraform Outputs",
+            "description": "Create a static Ansible inventory file and enhance Terraform outputs to facilitate inventory population.",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Create `ansible/inventory/hosts` to define VM groups (e.g., `[all]`, `[vms]`, `[management]`). Manually add placeholder entries for VMs provisioned by Terraform. Modify `terraform/outputs.tf` to output VM IP addresses and hostnames in a structured format (e.g., JSON or plain text list) that can be easily copied or parsed for the static inventory.",
+            "status": "done",
+            "testStrategy": "Verify `ansible/inventory/hosts` is created with at least one group and a placeholder host. Run `terraform output` and confirm that VM IP addresses and hostnames are correctly displayed, making it easy to populate the Ansible inventory."
+          },
+          {
+            "id": 3,
+            "title": "Create Basic Connectivity and SSH Key Management Playbook",
+            "description": "Develop a playbook to test Ansible connectivity and manage SSH keys for administrative users.",
+            "dependencies": [
+              "3.1",
+              "3.2"
+            ],
+            "details": "Create `ansible/playbooks/initial_setup.yml`. This playbook should: 1) Ping target hosts to verify SSH connectivity using the `vuvadmin` user and the SSH key deployed by cloud-init. 2) Ensure the `vuvadmin` user has the correct SSH public key. 3) Optionally, add an additional administrative user (e.g., `ansible_admin`) and deploy their SSH public key.",
+            "status": "done",
+            "testStrategy": "Execute `ansible-playbook ansible/playbooks/initial_setup.yml`. Verify that all hosts are reachable and the playbook completes successfully. Manually SSH into a VM as `vuvadmin` and, if implemented, as `ansible_admin` to confirm key-based authentication works."
+          },
+          {
+            "id": 4,
+            "title": "Implement System Update and Package Management Playbook",
+            "description": "Develop a playbook to perform system updates and install essential packages on managed VMs.",
+            "dependencies": [
+              "3.1",
+              "3.2",
+              "3.3"
+            ],
+            "details": "Create `ansible/playbooks/system_updates.yml`. This playbook will: 1) Perform `apt update` and `apt upgrade` on all target VMs. 2) Install a set of common utility packages (e.g., `htop`, `git`, `vim`, `curl`, `wget`). 3) Configure `unattended-upgrades` for automatic security updates.",
+            "status": "done",
+            "testStrategy": "Execute `ansible-playbook ansible/playbooks/system_updates.yml`. SSH into a provisioned VM and verify that packages like `htop` are installed, `apt list --upgradable` shows no pending updates, and `unattended-upgrades` service is active."
+          },
+          {
+            "id": 5,
+            "title": "Develop Basic Security Hardening Playbook",
+            "description": "Create a playbook to apply essential security hardening measures, including firewall rules and SSH configuration.",
+            "dependencies": [
+              "3.1",
+              "3.2",
+              "3.3"
+            ],
+            "details": "Create `ansible/playbooks/security_hardening.yml`. This playbook should: 1) Install and configure `ufw` (Uncomplicated Firewall) to allow SSH (port 22) and deny all other incoming connections by default. 2) Ensure `PasswordAuthentication no` is set in `/etc/ssh/sshd_config` to disable password-based SSH logins. 3) Restart the SSH service to apply changes. 4) Ensure `rsyslog` is installed and running for basic logging.",
+            "status": "done",
+            "testStrategy": "Execute `ansible-playbook ansible/playbooks/security_hardening.yml`. SSH into a VM and verify `sudo ufw status` shows SSH allowed and firewall active. Attempt to SSH with a password (should fail). Check `/etc/ssh/sshd_config` for `PasswordAuthentication no`. Verify `systemctl status rsyslog` shows it's running."
+          }
+        ]
       },
       {
         "id": 4,
@@ -175,7 +234,7 @@
     ],
     "metadata": {
       "created": "2025-09-01T19:55:21.773Z",
-      "updated": "2025-09-01T19:55:21.774Z",
+      "updated": "2025-09-21T16:09:42.497Z",
       "description": "Tasks for master context"
     }
   }

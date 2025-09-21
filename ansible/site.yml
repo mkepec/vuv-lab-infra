@@ -1,0 +1,15 @@
+---
+# VUV Lab Infrastructure - Master Site Playbook
+# This playbook orchestrates the complete configuration of all lab infrastructure VMs
+# Run with: ansible-playbook site.yml
+
+
+# Phase 1: Initial Setup and Connectivity
+- import_playbook: playbooks/initial_setup.yml
+
+# Phase 2: System Updates and Package Management
+- import_playbook: playbooks/system_updates.yml
+
+# Phase 3: Security Hardening
+- import_playbook: playbooks/security_hardening.yml
+
