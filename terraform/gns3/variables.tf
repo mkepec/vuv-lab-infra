@@ -3,12 +3,6 @@ variable "proxmox_host" {
   type        = string
 }
 
-variable "proxmox_user" {
-  description = "Proxmox VE username"
-  type        = string
-  default     = "terraform@pve"
-}
-
 variable "proxmox_api_token" {
   description = "Proxmox VE API token"
   type        = string
