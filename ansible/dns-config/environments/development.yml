@@ -1,0 +1,66 @@
+---
+# Development Environment DNS Configuration  
+# Used for testing and development of DNS infrastructure
+
+dns_environment: "development"
+
+# External DNS forwarders (Public DNS for development)
+external_dns_servers:
+  - "8.8.8.8"        # Google DNS primary
+  - "1.1.1.1"        # Cloudflare DNS
+  - "161.53.72.1"    # CARNet DNS (backup)
+
+# BIND configuration for development
+bind_listen_ipv4: "192.168.1.10"
+bind_listen_ipv6: "none"
+bind_allow_query:
+  - "192.168.1.0/24"
+  - "10.0.0.0/8"     # Additional test networks
+  - "127.0.0.1"
+bind_allow_recursion:
+  - "192.168.1.0/24"
+  - "10.0.0.0/8"
+  - "127.0.0.1"
+
+# Pi-hole development settings
+pihole_dns_1: "8.8.8.8"      # Google DNS for faster resolution
+pihole_dns_2: "1.1.1.1"      # Cloudflare DNS
+pihole_conditional_forwarding: true
+pihole_conditional_forwarding_ip: "192.168.1.10"
+pihole_conditional_forwarding_domain: "vuv.lab"
+
+# Relaxed security for development
+bind_log_queries: true
+bind_log_level: "debug"       # More verbose logging
+pihole_query_logging: true
+
+# Development network settings
+lab_network_cidr: "192.168.1.0/24"
+lab_network_gateway: "192.168.1.1"
+
+# Development-specific features
+enable_firewall: false        # Relaxed firewall for testing
+enable_fail2ban: false        # Disabled for development
+backup_configs: false         # Less frequent backups
+
+# Additional development DNS records
+development_dns_records:
+  - name: "test"
+    type: "A"
+    value: "192.168.1.100"
+    comment: "Test server"
+
+  - name: "dev"
+    type: "A" 
+    value: "192.168.1.101"
+    comment: "Development server"
+
+  - name: "staging"
+    type: "A"
+    value: "192.168.1.102"
+    comment: "Staging server"
+
+# Relaxed Pi-hole blocking for development
+pihole_blocklists_dev:
+  - "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
+  # Reduced blocklists for development to avoid breaking test sites

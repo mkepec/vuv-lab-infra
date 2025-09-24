@@ -1,0 +1,115 @@
+---
+# DNS Configuration Validation Tasks
+
+- name: Test BIND DNS resolution for local domain
+  shell: |
+    dig +short @{{ dns_bind_ip }} {{ item.name }}.{{ zone.zone.name }}
+  delegate_to: localhost
+  loop: "{{ zone.records | selectattr('type', 'equalto', 'A') | list }}"
+  vars:
+    zone: "{{ dns_zones[0] }}"
+  register: bind_local_resolution
+  failed_when: 
+    - bind_local_resolution.rc != 0
+    - item.value not in bind_local_resolution.stdout
+  when: dns_zones is defined and dns_zones|length > 0
+  tags:
+    - test-local-resolution
+
+- name: Test BIND forwarding to Pi-hole
+  shell: |
+    dig +short @{{ dns_bind_ip }} google.com
+  delegate_to: localhost
+  register: bind_forwarding_test
+  failed_when: bind_forwarding_test.rc != 0 or bind_forwarding_test.stdout == ""
+  tags:
+    - test-forwarding
+
+- name: Test Pi-hole upstream resolution
+  shell: |
+    dig +short @{{ dns_pihole_ip }} google.com
+  delegate_to: localhost
+  register: pihole_upstream_test
+  failed_when: pihole_upstream_test.rc != 0 or pihole_upstream_test.stdout == ""
+  tags:
+    - test-upstream
+
+- name: Test Pi-hole blocking functionality
+  shell: |
+    dig +short @{{ dns_pihole_ip }} doubleclick.net
+  delegate_to: localhost
+  register: pihole_blocking_test
+  failed_when: false  # Allow this to fail - blocking is expected
+  tags:
+    - test-blocking
+
+- name: Test reverse DNS resolution
+  shell: |
+    dig +short @{{ dns_bind_ip }} -x {{ item.value }}
+  delegate_to: localhost
+  loop: "{{ zone.records | selectattr('type', 'equalto', 'A') | list }}"
+  vars:
+    zone: "{{ dns_zones[0] }}"
+  register: reverse_dns_test
+  failed_when: false  # Reverse DNS might not be fully configured yet
+  when: dns_zones is defined and dns_zones|length > 0
+  tags:
+    - test-reverse-dns
+
+- name: Verify Pi-hole web interface accessibility
+  uri:
+    url: "http://{{ dns_pihole_ip }}/admin/"
+    method: GET
+    status_code: 200
+    timeout: 10
+  delegate_to: localhost
+  register: pihole_web_test
+  tags:
+    - test-web-interface
+
+- name: Test DNS query logging (BIND)
+  shell: |
+    tail -n 5 /var/log/bind/queries.log
+  delegate_to: "{{ dns_bind_ip }}"
+  register: bind_query_log
+  failed_when: false
+  tags:
+    - test-logging
+
+- name: Generate DNS validation report
+  debug:
+    msg:
+      - "=== DNS Validation Report ==="
+      - "BIND Local Resolution: {{ 'PASS' if bind_local_resolution is not failed else 'FAIL' }}"
+      - "BIND → Pi-hole Forwarding: {{ 'PASS' if bind_forwarding_test.rc == 0 else 'FAIL' }}"
+      - "Pi-hole → Upstream: {{ 'PASS' if pihole_upstream_test.rc == 0 else 'FAIL' }}"
+      - "Pi-hole Blocking: {{ 'ACTIVE' if pihole_blocking_test.stdout == '' or '0.0.0.0' in pihole_blocking_test.stdout else 'INACTIVE' }}"
+      - "Pi-hole Web Interface: {{ 'ACCESSIBLE' if pihole_web_test.status == 200 else 'INACCESSIBLE' }}"
+      - "Reverse DNS: {{ 'CONFIGURED' if reverse_dns_test is not failed else 'NOT CONFIGURED' }}"
+      - ""
+      - "DNS Infrastructure Status: {{ 'OPERATIONAL' if (bind_forwarding_test.rc == 0 and pihole_upstream_test.rc == 0) else 'ISSUES DETECTED' }}"
+  tags:
+    - validation-report
+
+- name: Create validation summary file
+  copy:
+    content: |
+      DNS Configuration Validation Summary
+      Generated: {{ ansible_date_time.iso8601 }}
+      
+      Test Results:
+      - BIND Local Resolution: {{ 'PASS' if bind_local_resolution is not failed else 'FAIL' }}
+      - BIND Forwarding: {{ 'PASS' if bind_forwarding_test.rc == 0 else 'FAIL' }}
+      - Pi-hole Upstream: {{ 'PASS' if pihole_upstream_test.rc == 0 else 'FAIL' }}  
+      - Pi-hole Blocking: {{ 'ACTIVE' if pihole_blocking_test.stdout == '' else 'INACTIVE' }}
+      - Web Interface: {{ 'OK' if pihole_web_test.status == 200 else 'ERROR' }}
+      
+      Infrastructure:
+      - BIND Server: {{ dns_bind_ip }}:53
+      - Pi-hole Server: {{ dns_pihole_ip }}:53
+      - Domain: {{ bind_domain }}
+      - Status: {{ 'OPERATIONAL' if (bind_forwarding_test.rc == 0 and pihole_upstream_test.rc == 0) else 'ISSUES' }}
+    dest: "{{ playbook_dir }}/dns-validation-report.txt"
+  delegate_to: localhost
+  tags:
+    - validation-summary

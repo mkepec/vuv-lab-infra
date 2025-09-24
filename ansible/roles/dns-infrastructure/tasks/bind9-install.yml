@@ -1,0 +1,106 @@
+---
+# BIND9 Installation and Base Configuration
+
+- name: Update package cache on BIND container
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  delegate_to: "{{ dns_bind_ip }}"
+  tags:
+    - packages
+
+- name: Install BIND9 and utilities
+  apt:
+    name:
+      - bind9
+      - bind9utils
+      - bind9-dnsutils
+      - bind9-host
+      - dnsutils
+    state: present
+  delegate_to: "{{ dns_bind_ip }}"
+  tags:
+    - packages
+
+- name: Create BIND directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: bind
+    group: bind
+    mode: '0755'
+  loop:
+    - /etc/bind/zones
+    - /var/log/bind
+    - /var/cache/bind
+  delegate_to: "{{ dns_bind_ip }}"
+  tags:
+    - directories
+
+- name: Configure BIND9 main options
+  template:
+    src: named.conf.options.j2
+    dest: /etc/bind/named.conf.options
+    owner: bind
+    group: bind
+    mode: '0644'
+    backup: yes
+  delegate_to: "{{ dns_bind_ip }}"
+  notify: restart bind9
+  tags:
+    - config
+
+- name: Configure BIND9 local zones
+  template:
+    src: named.conf.local.j2
+    dest: /etc/bind/named.conf.local
+    owner: bind
+    group: bind
+    mode: '0644'
+    backup: yes
+  delegate_to: "{{ dns_bind_ip }}"
+  notify: restart bind9
+  tags:
+    - config
+
+- name: Configure BIND9 logging
+  template:
+    src: named.conf.logging.j2
+    dest: /etc/bind/named.conf.logging
+    owner: bind
+    group: bind
+    mode: '0644'
+    backup: yes
+  delegate_to: "{{ dns_bind_ip }}"
+  notify: restart bind9
+  tags:
+    - config
+
+- name: Include logging configuration in main config
+  lineinfile:
+    path: /etc/bind/named.conf
+    line: 'include "/etc/bind/named.conf.logging";'
+    insertafter: 'include "/etc/bind/named.conf.local";'
+  delegate_to: "{{ dns_bind_ip }}"
+  notify: restart bind9
+  tags:
+    - config
+
+- name: Start and enable BIND9 service
+  systemd:
+    name: bind9
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  delegate_to: "{{ dns_bind_ip }}"
+  tags:
+    - service
+
+- name: Configure logrotate for BIND logs
+  template:
+    src: bind-logrotate.j2
+    dest: /etc/logrotate.d/bind9
+    mode: '0644'
+  delegate_to: "{{ dns_bind_ip }}"
+  tags:
+    - logging

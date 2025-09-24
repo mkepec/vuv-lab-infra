@@ -37,8 +37,10 @@ Here's the complete infrastructure deployment workflow:
 5. **[Configure VMs with Ansible](#step-5-ansible-configuration-management)** - Set up automated configuration management
 6. **[Validation](#validation-checklist)** - Comprehensive testing before service deployment
 
-### Phase 3: Service Deployment
-7. **[Deploy Services](services-deployment.md)** - GNS3, monitoring, DNS, and other lab services
+### Phase 3: Service Deployment  
+7. **[DNS Infrastructure](dns-infrastructure-guide.md)** - Deploy BIND + Pi-hole DNS services
+8. **[Certificate Authority Setup](ca-infrastructure-guide.md)** - PKI and certificate management
+9. **[Deploy Services](services-deployment.md)** - GNS3, monitoring, and other lab services
 
 **Expected time**: 2-3 hours for complete setup (Phase 1-2)
 

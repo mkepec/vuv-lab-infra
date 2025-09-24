@@ -1,0 +1,11 @@
+# Task ID: 10
+# Title: Automated Backup Procedures
+# Status: not_started
+# Dependencies: 2, 3, 9
+# Priority: high
+# Description: Implement automated backup procedures for VMs and configurations using Proxmox built-in tools and ensure version control for all infrastructure code.
+# Details:
+Configure automated backup jobs within Proxmox for all critical VMs. Ensure that all Terraform state files, Ansible playbooks, and service configurations (e.g., BIND zone files) are consistently version-controlled in the Git repository. Document basic recovery procedures.
+
+# Test Strategy:
+Perform a test backup and restore operation for a non-critical VM to validate the backup process. Verify that all configuration files are correctly committed and retrievable from the Git repository.

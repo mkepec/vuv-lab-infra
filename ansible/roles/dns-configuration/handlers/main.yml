@@ -1,0 +1,47 @@
+---
+# DNS Configuration Role Handlers
+
+- name: reload bind9
+  systemd:
+    name: bind9
+    state: reloaded
+  delegate_to: "{{ dns_bind_ip }}"
+
+- name: restart bind9
+  systemd:
+    name: bind9
+    state: restarted
+    daemon_reload: yes
+  delegate_to: "{{ dns_bind_ip }}"
+
+- name: check bind9 config
+  shell: named-checkconf /etc/bind/named.conf
+  delegate_to: "{{ dns_bind_ip }}"
+  register: bind_config_check
+  failed_when: bind_config_check.rc != 0
+
+- name: restart pihole-FTL
+  systemd:
+    name: pihole-FTL
+    state: restarted
+    daemon_reload: yes
+  delegate_to: "{{ dns_pihole_ip }}"
+
+- name: reload pihole-FTL
+  systemd:
+    name: pihole-FTL
+    state: reloaded
+  delegate_to: "{{ dns_pihole_ip }}"
+
+- name: update pihole gravity
+  shell: pihole -g
+  delegate_to: "{{ dns_pihole_ip }}"
+
+- name: flush dns cache
+  shell: |
+    rndc flush
+  delegate_to: "{{ dns_bind_ip }}"
+  ignore_errors: yes
+
+- name: validate dns deployment
+  include_tasks: dns-validation.yml

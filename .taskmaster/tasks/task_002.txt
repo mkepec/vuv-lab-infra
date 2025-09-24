@@ -1,0 +1,11 @@
+# Task ID: 2
+# Title: Terraform Foundation & Proxmox Integration
+# Status: done
+# Dependencies: 1
+# Priority: high
+# Description: Initialize Terraform configuration with the Proxmox provider, create a base Ubuntu 22.04 VM template, and provision initial VMs with VLAN-based network isolation.
+# Details:
+Run `terraform init` to configure the Proxmox provider. Define a reusable Ubuntu 22.04 VM template in Proxmox. Create Terraform modules/resources for basic VM provisioning, including cloud-init for initial setup. Implement VLAN-based network isolation for different service types as defined in the PRD (Management, Service, Lab VLANs). Configure `terraform.tfvars` for environment-specific settings.
+
+# Test Strategy:
+Successfully provision and destroy a test VM using Terraform. Verify network connectivity and correct VLAN assignment for the provisioned VM. Confirm that cloud-init scripts execute as expected (e.g., hostname, SSH keys).

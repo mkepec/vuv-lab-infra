@@ -1,0 +1,56 @@
+---
+# Reverse DNS Zone Configuration
+# Defines PTR records for reverse DNS lookups
+
+dns_reverse_zones:
+  - network: "192.168.1.0/24"
+    arpa_zone: "1.168.192.in-addr.arpa"
+    ttl: 86400
+    serial: "{{ ansible_date_time.epoch }}"
+    refresh: 3600
+    retry: 1800
+    expire: 604800
+    minimum: 86400
+    primary_ns: "dns-bind.vuv.lab"
+    admin_email: "admin.vuv.lab"
+
+    ptr_records:
+      # Infrastructure Services
+      - ip_suffix: "10"
+        hostname: "dns-bind.vuv.lab"
+        comment: "BIND DNS Server"
+
+      - ip_suffix: "11"
+        hostname: "dns-pihole.vuv.lab"
+        comment: "Pi-hole DNS Filter"
+
+      - ip_suffix: "12"
+        hostname: "ca.vuv.lab"
+        comment: "Certificate Authority"
+
+      - ip_suffix: "13"
+        hostname: "traefik.vuv.lab"
+        comment: "Traefik Reverse Proxy"
+
+      - ip_suffix: "190"
+        hostname: "proxmox.vuv.lab"
+        comment: "Proxmox VE Host"
+
+      # Network Services (20-29)
+      - ip_suffix: "20"
+        hostname: "gns3.vuv.lab"
+        comment: "GNS3 Server"
+
+      # Monitoring Services (30-39)
+      - ip_suffix: "30"
+        hostname: "prometheus.vuv.lab"
+        comment: "Prometheus Server"
+
+      - ip_suffix: "31"
+        hostname: "grafana.vuv.lab"
+        comment: "Grafana Dashboard"
+
+      # Container Hosts (40-49)
+      - ip_suffix: "40"
+        hostname: "docker-host-01.vuv.lab"
+        comment: "Docker Host 1"

@@ -1,0 +1,11 @@
+# Task ID: 7
+# Title: Monitoring Stack Deployment (Prometheus & Grafana)
+# Status: not_started
+# Dependencies: 2, 3, 4
+# Priority: high
+# Description: Deploy Prometheus and Grafana VMs, configure Prometheus to collect metrics from the infrastructure and VMs, and create basic Grafana dashboards and alerting rules.
+# Details:
+Create Terraform resource definitions for Prometheus and Grafana server VMs. Develop Ansible playbooks for their installation and configuration. Configure Prometheus to monitor all Proxmox infrastructure components and provisioned VMs (e.g., using Node Exporter). Create initial Grafana dashboards for infrastructure monitoring and set up basic alerting rules for critical system events.
+
+# Test Strategy:
+Access Grafana dashboards and verify that metrics are being collected from all expected sources (Proxmox, VMs). Test a simple alerting rule to ensure notifications are triggered correctly.

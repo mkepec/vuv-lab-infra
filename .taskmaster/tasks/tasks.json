@@ -99,47 +99,32 @@
       },
       {
         "id": 4,
-        "title": "DNS Infrastructure Deployment (BIND)",
-        "description": "Deploy a dedicated BIND DNS server VM using Terraform and configure it with Ansible, managing DNS zone files under version control.",
-        "details": "Create a Terraform resource definition for the BIND DNS server VM. Develop an Ansible playbook for BIND installation, configuration, and management of DNS zone files (e.g., `lab.vuv.hr`). Ensure zone files are stored in the Git repository for version control.",
-        "testStrategy": "Verify BIND service status on the deployed VM. Perform DNS lookups from other provisioned VMs to confirm internal name resolution. Test updating a zone file via Ansible and verify the changes are reflected.",
-        "priority": "high",
+        "title": "DNS Infrastructure Deployment (BIND + Pi-hole)",
+        "description": "Deploy a robust DNS infrastructure using BIND and Pi-hole within LXC containers on Proxmox, establishing an authoritative internal DNS and a filtering/ad-blocking layer. Manage all DNS configurations and records via Ansible and GitOps.",
+        "status": "not_started",
         "dependencies": [
           2,
           3
         ],
-        "status": "not_started",
-        "subtasks": []
-      },
-      {
-        "id": 5,
-        "title": "GNS3 Server Deployment",
-        "description": "Provision a dedicated GNS3 server VM using Terraform and configure it using Ansible, including user management and project directories.",
-        "details": "Create a Terraform resource definition for the GNS3 server VM with specified resource allocations (8GB RAM, 4 vCPUs, 50GB disk). Develop an Ansible playbook for GNS3 server installation, configuration of appropriate user management, and setup of project directories. Implement network configuration for GNS3 lab connectivity.",
-        "testStrategy": "Access the GNS3 web interface. Create a simple network topology project within GNS3. Verify client connectivity to the GNS3 server.",
-        "priority": "medium",
-        "dependencies": [
-          2,
-          3,
-          4
-        ],
-        "status": "done",
+        "priority": "high",
+        "details": "The new DNS architecture will consist of two LXC containers deployed on Proxmox:\n\n1.  **BIND LXC Container (192.168.1.10)**: Will serve as the authoritative DNS server for the `vuv.lab` domain.\n2.  **Pi-hole LXC Container (192.168.1.11)**: Will provide DNS filtering, ad blocking, and act as an upstream resolver for BIND.\n\nThe intended DNS request flow is: Lab VMs → BIND (for `vuv.lab` and forwarding non-`vuv.lab` queries) → Pi-hole (filtering and upstream resolution) → CARNet DNS.\n\n**Implementation Steps:**\n*   **LXC Container Provisioning**: Utilize the `dns-infrastructure` Ansible role to define and provision the BIND and Pi-hole LXC containers on Proxmox. This role will also handle the installation of BIND9 and Pi-hole software within their respective containers, ensuring they are configured with the specified IP addresses (192.168.1.10 for BIND, 192.168.1.11 for Pi-hole).\n*   **BIND Configuration**: Configure BIND as an authoritative server for the `vuv.lab` domain. Set BIND to forward all non-authoritative queries to the Pi-hole LXC container (192.168.1.11).\n*   **Pi-hole Configuration**: Configure Pi-hole to use CARNet DNS servers as its primary upstream resolvers and enable appropriate ad-blocking lists. Implement conditional forwarding within Pi-hole for `vuv.lab` queries back to the BIND LXC container (192.168.1.10) to ensure robustness, even though the primary flow directs `vuv.lab` queries directly to BIND.\n*   **Data-driven Configuration**: All DNS records for `vuv.lab` (A, PTR, CNAME, etc.), Pi-hole adlists, and upstream DNS settings will be managed as data within YAML files located in the `dns-config/` directory within the Git repository.\n*   **Ansible Roles**: The `dns-configuration` Ansible role will be responsible for applying these data-driven configurations to both BIND (generating and deploying zone files like `lab.vuv.hr.zone`) and Pi-hole (updating settings via its API or configuration files).\n*   **GitOps Workflow**: DNS record management will follow a GitOps approach. Changes to `dns-config/` YAML files will be committed to the Git repository, and subsequent Ansible playbook runs will apply these changes to the live DNS infrastructure.\n*   **Playbook Structure**: Separate Ansible playbooks will be created: one for `dns-infrastructure` deployment (LXC creation, software installation) and another for `dns-configuration` (DNS records, policies, adlists). This aligns with the project's data-driven configuration and GitOps principles.",
+        "testStrategy": "1.  **LXC Container Verification**: Confirm that both the BIND and Pi-hole LXC containers are running on Proxmox and are accessible via their assigned IP addresses (192.168.1.10 and 192.168.1.11).\n2.  **Service Status**: Verify that the BIND9 service is active and listening within its container, and the Pi-hole service (dnsmasq/FTL) is active and listening within its container.\n3.  **Internal DNS Resolution (BIND)**: From a provisioned lab VM, perform `dig @192.168.1.10 host.vuv.lab` for a known internal record (e.g., `server1.vuv.lab`) to confirm BIND's authoritative resolution.\n4.  **Full DNS Flow Verification**: Configure a test lab VM to use 192.168.1.10 as its primary DNS server. Perform `dig example.com` (a non-`vuv.lab` domain) and verify successful resolution, ensuring the query path (Lab VM → BIND → Pi-hole → CARNet DNS) is followed by inspecting DNS query logs on BIND and Pi-hole.\n5.  **Ad-blocking Functionality**: From the test lab VM, perform `dig ad.doubleclick.net` or similar known ad-serving domains and verify that Pi-hole successfully blocks the resolution (e.g., returns 0.0.0.0 or NXDOMAIN).\n6.  **GitOps Record Update**: Modify an existing DNS record or add a new A record (e.g., `test.vuv.lab`) in the `dns-config/` YAML files, commit the change to Git, and execute the `dns-configuration` Ansible playbook. Verify the change is reflected by performing a `dig test.vuv.lab` from a lab VM.",
         "subtasks": []
       },
       {
         "id": 6,
-        "title": "Traefik Reverse Proxy Implementation",
-        "description": "Deploy a Traefik reverse proxy VM, configure it for service discovery, SSL/TLS termination with self-signed certificates, and enable HTTPS access for web services.",
-        "details": "Create a Terraform resource definition for the Traefik reverse proxy VM. Develop an Ansible playbook for Traefik installation and configuration, including service discovery mechanisms. Implement SSL/TLS termination using self-signed certificates. Configure HTTPS access for services like the GNS3 web interface and other future web-based services.",
-        "testStrategy": "Access the GNS3 web interface via the Traefik HTTPS endpoint. Verify that SSL/TLS termination is working correctly and the self-signed certificate is presented. Check the Traefik dashboard for service routing status.",
-        "priority": "high",
+        "title": "Traefik Reverse Proxy Implementation with Internal CA",
+        "description": "Deploy a Traefik reverse proxy VM, configure it for service discovery, and enable HTTPS access for web services using certificates issued by the internal Certificate Authority (CA).",
+        "status": "not_started",
         "dependencies": [
           2,
           3,
           4,
           5
         ],
-        "status": "not_started",
+        "priority": "high",
+        "details": "Create a Terraform resource definition for the Traefik reverse proxy VM using `terraform/vms/traefik_proxy.tf`. Develop an Ansible playbook (`ansible/playbooks/traefik_proxy.yml`) and update the `ansible/roles/traefik` role for Traefik installation and configuration. This includes setting up service discovery mechanisms (e.g., Docker provider) and configuring SSL/TLS termination. Crucially, configure Traefik to integrate with the internal CA (from Task 5) via ACME. This involves setting `traefik_acme_enabled: true` and `traefik_acme_caserver` to the internal CA's ACME endpoint in `ansible/roles/traefik/defaults/main.yml`. The `ansible/roles/traefik/templates/traefik.yml.j2` will be updated to define a `certificatesResolvers` block using `tlsChallenge`. Finally, `ansible/roles/traefik/templates/dynamic_config.yml.j2` will be configured to apply this ACME resolver to services, enabling automatic certificate provisioning from the trusted internal CA for services like the GNS3 web interface and other future web-based services.",
+        "testStrategy": "Access the GNS3 web interface via the Traefik HTTPS endpoint. Verify that SSL/TLS termination is working correctly and the certificate presented is issued by the internal VUV Lab Root CA. Check the Traefik dashboard for service routing status and certificate resolver logs to confirm successful certificate issuance.",
         "subtasks": []
       },
       {
@@ -230,11 +215,39 @@
         ],
         "status": "not_started",
         "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "GNS3 Server Deployment",
+        "description": "Provision a dedicated GNS3 server VM using Terraform and configure it using Ansible, including user management and project directories.",
+        "details": "Create a Terraform resource definition for the GNS3 server VM with specified resource allocations (8GB RAM, 4 vCPUs, 50GB disk). Develop an Ansible playbook for GNS3 server installation, configuration of appropriate user management, and setup of project directories. Implement network configuration for GNS3 lab connectivity.",
+        "testStrategy": "Access the GNS3 web interface. Create a simple network topology project within GNS3. Verify client connectivity to the GNS3 server.",
+        "priority": "medium",
+        "dependencies": [
+          2,
+          3,
+          4
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Certificate Authority & PKI Infrastructure Setup",
+        "description": "Deploy a private Certificate Authority (CA) for the VUV lab, establish a PKI hierarchy, and prepare for automated certificate management for internal services.",
+        "details": "This task involves setting up a robust Certificate Authority (CA) and Public Key Infrastructure (PKI) to secure internal lab services with trusted HTTPS certificates. The CA will be deployed as an LXC container, leveraging the existing Proxmox infrastructure and Ansible for configuration.\n\n**Implementation Steps:**\n1.  **CA Server Provisioning**: Create a new LXC container (e.g., `ca.vuv.lab` with IP `192.168.1.12`) using Terraform. This container will host the private CA, similar to how DNS containers are provisioned.\n2.  **CA Software Installation**: Use Ansible to install and configure a suitable CA software within the LXC container. `Smallstep CA (step-ca)` is recommended for its ease of use, ACME integration, and automation capabilities. Alternatively, a well-scripted OpenSSL setup managed by Ansible can be used.\n3.  **Root CA Generation**: Generate a self-signed Root CA certificate for the `vuv.lab` domain. This certificate will be the trust anchor for the entire lab.\n4.  **Intermediate CA Creation**: Create an Intermediate CA certificate, signed by the Root CA. This Intermediate CA will be responsible for issuing all service certificates, enhancing security by keeping the Root CA offline or highly protected.\n5.  **Certificate Management Configuration**: Configure the CA to support automated certificate issuance and renewal. If using `step-ca`, enable its integrated ACME server. This will allow services (like Traefik) to request and renew certificates automatically using ACME challenges.\n6.  **DNS Integration**: Ensure the CA server's hostname (`ca.vuv.lab`) is registered in the BIND DNS server (Task 4). If using ACME DNS-01 challenges, configure the CA to interact with the BIND server for automated DNS record updates (e.g., via `nsupdate` or an appropriate ACME DNS plugin).\n7.  **Trust Distribution**: Prepare a mechanism to distribute the Root CA certificate to all lab machines and services that need to trust internal certificates (e.g., via an Ansible playbook to add to system trust stores).\n8.  **Certificate Policy**: Define a basic certificate policy for the lab, including certificate lifetimes, key sizes, and naming conventions.\n\n**Integration with other tasks:**\n-   **Task 4 (DNS Infrastructure)**: Essential for name resolution of the CA server and for DNS-01 challenges for certificate validation.\n-   **Task 6 (Traefik Reverse Proxy)**: This CA will provide trusted certificates for Traefik, replacing the need for self-signed certificates and enabling proper HTTPS for all services behind it.\n-   **Web Services (Grafana, Pi-hole, Proxmox, GNS3)**: This task lays the groundwork for enabling HTTPS on these services. For services behind Traefik, Traefik will handle the certificates. For services like Proxmox that might be accessed directly, a mechanism to issue and install certificates from this CA will be prepared.",
+        "testStrategy": "1.  **CA LXC Verification**: Confirm the CA LXC container is provisioned by Terraform and accessible via its assigned IP and hostname (`ca.vuv.lab`).\n2.  **CA Service Status**: Verify that the CA software (e.g., `step-ca`) is running correctly within the container.\n3.  **Root & Intermediate CA Verification**: Confirm the Root CA and Intermediate CA certificates are generated and properly chained. Verify their validity and subject/issuer details.\n4.  **Certificate Issuance Test**: Manually request a test certificate for a non-existent service (e.g., `testservice.vuv.lab`) from the Intermediate CA. Verify that the certificate is issued correctly and is trusted by the Root CA.\n5.  **ACME Functionality Test (if applicable)**: If an ACME server is configured, attempt to request a test certificate using an ACME client (e.g., `certbot` in dry-run mode) and verify that the challenge (e.g., DNS-01) is successfully completed.\n6.  **Trust Chain Validation**: On a client machine, attempt to validate the manually issued test certificate against the distributed Root CA to ensure the trust chain is correctly established.\n7.  **DNS Integration Test**: Verify that the CA server can resolve DNS records and, if configured for DNS-01 challenges, can interact with the BIND server to create/delete challenge records.",
+        "status": "pending",
+        "dependencies": [
+          4
+        ],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-09-01T19:55:21.773Z",
-      "updated": "2025-09-21T18:44:57.804Z",
+      "updated": "2025-09-24T19:09:39.571Z",
       "description": "Tasks for master context"
     }
   }

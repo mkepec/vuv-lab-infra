@@ -1,0 +1,11 @@
+# Task ID: 1
+# Title: Project Setup & Git Workflow
+# Status: done
+# Dependencies: None
+# Priority: high
+# Description: Establish the project repository, define Git workflow, and set up the initial documentation structure for the VUV Lab Infrastructure as Code project.
+# Details:
+Create the Git repository, define branching strategy (e.g., main, develop, feature branches), and set up initial documentation templates for deployment procedures, troubleshooting, and project overview.
+
+# Test Strategy:
+Verify repository creation and structure. Commit initial documentation files. Ensure team members can clone, commit, and push changes following the defined workflow.

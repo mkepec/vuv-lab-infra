@@ -1,0 +1,11 @@
+# Task ID: 11
+# Title: Knowledge Transfer & Documentation
+# Status: not_started
+# Dependencies: 1, 9, 10
+# Priority: high
+# Description: Create comprehensive operational runbooks, develop training materials for university IT staff, and conduct hands-on training sessions.
+# Details:
+Compile detailed operational runbooks covering deployment, troubleshooting, maintenance, and common administrative tasks. Develop training materials (presentations, practical exercises) tailored for university IT staff. Schedule and conduct hands-on training sessions to ensure effective knowledge transfer.
+
+# Test Strategy:
+Conduct training sessions and gather feedback from IT staff. Verify that IT staff can independently perform basic operational tasks and understand the documented procedures.

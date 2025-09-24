@@ -1,0 +1,11 @@
+# Task ID: 12
+# Title: Future Enhancements Framework & Roadmap
+# Status: not_started
+# Dependencies: 11
+# Priority: medium
+# Description: Document procedures for adding new services, create templates for common deployments, and outline the roadmap for future enhancements like HA and dynamic inventory.
+# Details:
+Create a 'how-to' guide or template for adding new services to the infrastructure, including steps for Terraform provisioning, Ansible configuration, Traefik integration, and monitoring setup. Document the future enhancement roadmap, including plans for dynamic Ansible inventory, a two-node Proxmox HA cluster, external NAS integration for backups, and proper CA integration for SSL certificates.
+
+# Test Strategy:
+Review the documented framework and roadmap with stakeholders to ensure clarity, completeness, and alignment with long-term goals. Confirm that the framework provides a clear path for future scalability and maintainability.

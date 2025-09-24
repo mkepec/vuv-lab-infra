@@ -1,0 +1,83 @@
+---
+# LXC Container Provisioning for DNS Services
+
+- name: Create BIND DNS LXC container
+  community.general.proxmox:
+    vmid: "{{ dns_bind_vmid }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_api_password }}"
+    api_host: "{{ proxmox_host }}"
+    node: "{{ proxmox_node }}"
+    hostname: "{{ dns_bind_hostname }}"
+    ostemplate: "{{ lxc_template }}"
+    cores: "{{ dns_bind_cores }}"
+    memory: "{{ dns_bind_memory }}"
+    swap: "{{ dns_bind_swap }}"
+    disk: "{{ dns_bind_disk }}"
+    storage: "{{ proxmox_storage }}"
+    netif: "{{ dns_bind_network }}"
+    onboot: true
+    unprivileged: true
+    state: present
+  delegate_to: localhost
+  tags:
+    - bind-lxc
+
+- name: Create Pi-hole DNS LXC container
+  community.general.proxmox:
+    vmid: "{{ dns_pihole_vmid }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_api_password }}"
+    api_host: "{{ proxmox_host }}"
+    node: "{{ proxmox_node }}"
+    hostname: "{{ dns_pihole_hostname }}"
+    ostemplate: "{{ lxc_template }}"
+    cores: "{{ dns_pihole_cores }}"
+    memory: "{{ dns_pihole_memory }}"
+    swap: "{{ dns_pihole_swap }}"
+    disk: "{{ dns_pihole_disk }}"
+    storage: "{{ proxmox_storage }}"
+    netif: "{{ dns_pihole_network }}"
+    onboot: true
+    unprivileged: true
+    state: present
+  delegate_to: localhost
+  tags:
+    - pihole-lxc
+
+- name: Start BIND LXC container
+  community.general.proxmox:
+    vmid: "{{ dns_bind_vmid }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_api_password }}"
+    api_host: "{{ proxmox_host }}"
+    node: "{{ proxmox_node }}"
+    state: started
+  delegate_to: localhost
+  tags:
+    - bind-lxc
+
+- name: Start Pi-hole LXC container
+  community.general.proxmox:
+    vmid: "{{ dns_pihole_vmid }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_api_password }}"
+    api_host: "{{ proxmox_host }}"
+    node: "{{ proxmox_node }}"
+    state: started
+  delegate_to: localhost
+  tags:
+    - pihole-lxc
+
+- name: Wait for containers to be accessible via SSH
+  wait_for:
+    host: "{{ item }}"
+    port: 22
+    delay: 30
+    timeout: 300
+  loop:
+    - "{{ dns_bind_ip }}"
+    - "{{ dns_pihole_ip }}"
+  delegate_to: localhost
+  tags:
+    - wait-ssh

@@ -1,0 +1,11 @@
+# Task ID: 15
+# Title: GNS3 Server Deployment
+# Status: done
+# Dependencies: 2, 3, 4
+# Priority: medium
+# Description: Provision a dedicated GNS3 server VM using Terraform and configure it using Ansible, including user management and project directories.
+# Details:
+Create a Terraform resource definition for the GNS3 server VM with specified resource allocations (8GB RAM, 4 vCPUs, 50GB disk). Develop an Ansible playbook for GNS3 server installation, configuration of appropriate user management, and setup of project directories. Implement network configuration for GNS3 lab connectivity.
+
+# Test Strategy:
+Access the GNS3 web interface. Create a simple network topology project within GNS3. Verify client connectivity to the GNS3 server.

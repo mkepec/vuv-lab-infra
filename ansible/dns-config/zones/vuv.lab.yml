@@ -1,0 +1,104 @@
+---
+# DNS Zone Configuration for vuv.lab domain
+# This file defines all DNS records for the VUV Lab infrastructure
+
+dns_zones:
+  - zone:
+      name: "vuv.lab"
+      ttl: 86400
+      serial: "{{ ansible_date_time.epoch }}"
+      refresh: 3600
+      retry: 1800
+      expire: 604800
+      minimum: 86400
+      primary_ns: "dns-bind.vuv.lab"
+      admin_email: "admin.vuv.lab"
+
+    records:
+      # Infrastructure Services
+      - name: "dns-bind"
+        type: "A"
+        value: "192.168.1.10"
+        comment: "BIND DNS Server"
+
+      - name: "dns-pihole"
+        type: "A"
+        value: "192.168.1.11"
+        comment: "Pi-hole DNS Filter"
+
+      - name: "ca"
+        type: "A"
+        value: "192.168.1.12"
+        comment: "Certificate Authority Server"
+
+      - name: "proxmox"
+        type: "A"
+        value: "192.168.1.190"
+        comment: "Proxmox VE Host"
+
+      # Network Services
+      - name: "gns3"
+        type: "A"
+        value: "192.168.1.20"
+        comment: "GNS3 Network Simulation Server"
+
+      - name: "traefik"
+        type: "A"
+        value: "192.168.1.13"
+        comment: "Traefik Reverse Proxy"
+
+      # Monitoring Stack
+      - name: "prometheus"
+        type: "A"
+        value: "192.168.1.30"
+        comment: "Prometheus Monitoring Server"
+
+      - name: "grafana"
+        type: "A"
+        value: "192.168.1.31"
+        comment: "Grafana Dashboard Server"
+
+      # Container Hosts
+      - name: "docker-host-01"
+        type: "A"
+        value: "192.168.1.40"
+        comment: "Docker Container Host"
+
+      # Service Aliases (CNAME records)
+      - name: "dns"
+        type: "CNAME"
+        value: "dns-bind"
+        comment: "DNS service alias"
+
+      - name: "monitoring"
+        type: "CNAME"
+        value: "grafana"
+        comment: "Monitoring dashboard alias"
+
+      - name: "proxy"
+        type: "CNAME"
+        value: "traefik"
+        comment: "Reverse proxy alias"
+
+      - name: "sim"
+        type: "CNAME"
+        value: "gns3"
+        comment: "Network simulation alias"
+
+      # TXT Records for verification and configuration
+      - name: "_acme-challenge"
+        type: "TXT"
+        value: "ACME challenge domain for certificate validation"
+        comment: "ACME challenge record"
+
+      - name: "@"
+        type: "TXT"
+        value: "v=spf1 -all"
+        comment: "SPF record to prevent email spoofing"
+
+      # MX Record (if email is needed)
+      - name: "@"
+        type: "MX"
+        value: "mail.carnet.hr"
+        priority: 10
+        comment: "Mail exchange record (CARNet)"

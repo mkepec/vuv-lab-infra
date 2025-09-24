@@ -1,0 +1,40 @@
+---
+# DNS Configuration Role - Main Tasks
+# Manages DNS records and policies from data-driven configuration
+
+- name: Load DNS configuration data
+  include_vars: "{{ item }}"
+  with_fileglob:
+    - "{{ playbook_dir }}/dns-config/zones/*.yml"
+    - "{{ playbook_dir }}/dns-config/pihole/*.yml"
+    - "{{ playbook_dir }}/dns-config/environments/{{ dns_environment | default('production') }}.yml"
+  tags:
+    - load-config
+
+- name: Validate DNS configuration data
+  include_tasks: validate-config.yml
+  tags:
+    - validate
+
+- name: Generate BIND zone files
+  include_tasks: bind-zones.yml
+  tags:
+    - bind-zones
+    - zones
+
+- name: Configure Pi-hole settings
+  include_tasks: pihole-config.yml
+  tags:
+    - pihole-config
+    - filtering
+
+- name: Update DNS service configurations
+  include_tasks: update-services.yml
+  tags:
+    - update-services
+
+- name: Validate DNS deployment
+  include_tasks: dns-validation.yml
+  tags:
+    - validate-deployment
+    - test

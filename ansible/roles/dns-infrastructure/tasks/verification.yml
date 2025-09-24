@@ -1,0 +1,104 @@
+---
+# DNS Infrastructure Verification Tasks
+
+- name: Check BIND9 service status
+  systemd:
+    name: bind9
+  delegate_to: "{{ dns_bind_ip }}"
+  register: bind9_status
+  tags:
+    - verify
+    - bind
+
+- name: Check Pi-hole FTL service status
+  systemd:
+    name: pihole-FTL
+  delegate_to: "{{ dns_pihole_ip }}"
+  register: pihole_status
+  tags:
+    - verify
+    - pihole
+
+- name: Verify BIND9 is listening on port 53
+  wait_for:
+    host: "{{ dns_bind_ip }}"
+    port: 53
+    timeout: 30
+  delegate_to: localhost
+  tags:
+    - verify
+    - bind
+
+- name: Verify Pi-hole is listening on port 53
+  wait_for:
+    host: "{{ dns_pihole_ip }}"
+    port: 53
+    timeout: 30
+  delegate_to: localhost
+  tags:
+    - verify
+    - pihole
+
+- name: Test BIND DNS resolution (localhost)
+  shell: |
+    dig @127.0.0.1 localhost
+  delegate_to: "{{ dns_bind_ip }}"
+  register: bind_localhost_test
+  failed_when: bind_localhost_test.rc != 0
+  tags:
+    - verify
+    - bind
+
+- name: Test Pi-hole DNS resolution (localhost) 
+  shell: |
+    dig @127.0.0.1 localhost
+  delegate_to: "{{ dns_pihole_ip }}"
+  register: pihole_localhost_test
+  failed_when: pihole_localhost_test.rc != 0
+  tags:
+    - verify
+    - pihole
+
+- name: Test BIND forwarding to Pi-hole
+  shell: |
+    dig @{{ dns_bind_ip }} google.com
+  delegate_to: localhost
+  register: bind_forward_test
+  failed_when: bind_forward_test.rc != 0
+  tags:
+    - verify
+    - integration
+
+- name: Test Pi-hole upstream resolution
+  shell: |
+    dig @{{ dns_pihole_ip }} google.com
+  delegate_to: localhost
+  register: pihole_upstream_test
+  failed_when: pihole_upstream_test.rc != 0
+  tags:
+    - verify
+    - integration
+
+- name: Verify Pi-hole web interface is accessible
+  uri:
+    url: "http://{{ dns_pihole_ip }}/admin/"
+    method: GET
+    status_code: 200
+  delegate_to: localhost
+  tags:
+    - verify
+    - pihole
+    - web
+
+- name: Display service verification results
+  debug:
+    msg:
+      - "BIND9 Status: {{ 'Running' if bind9_status.status.ActiveState == 'active' else 'Not Running' }}"
+      - "Pi-hole Status: {{ 'Running' if pihole_status.status.ActiveState == 'active' else 'Not Running' }}" 
+      - "BIND DNS Test: {{ 'PASS' if bind_localhost_test.rc == 0 else 'FAIL' }}"
+      - "Pi-hole DNS Test: {{ 'PASS' if pihole_localhost_test.rc == 0 else 'FAIL' }}"
+      - "BIND→Pi-hole Forward: {{ 'PASS' if bind_forward_test.rc == 0 else 'FAIL' }}"
+      - "Pi-hole→Upstream: {{ 'PASS' if pihole_upstream_test.rc == 0 else 'FAIL' }}"
+  tags:
+    - verify
+    - summary

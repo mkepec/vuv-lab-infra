@@ -1,0 +1,119 @@
+---
+# Pi-hole Installation and Configuration
+
+- name: Update package cache on Pi-hole container
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  delegate_to: "{{ dns_pihole_ip }}"
+  tags:
+    - packages
+
+- name: Install Pi-hole prerequisites
+  apt:
+    name:
+      - curl
+      - wget
+      - git
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - sudo
+    state: present
+  delegate_to: "{{ dns_pihole_ip }}"
+  tags:
+    - packages
+
+- name: Create Pi-hole configuration directory
+  file:
+    path: /etc/pihole
+    state: directory
+    mode: '0755'
+  delegate_to: "{{ dns_pihole_ip }}"
+  tags:
+    - directories
+
+- name: Generate Pi-hole setupVars.conf
+  template:
+    src: setupVars.conf.j2
+    dest: /etc/pihole/setupVars.conf
+    mode: '0644'
+    backup: yes
+  delegate_to: "{{ dns_pihole_ip }}"
+  tags:
+    - config
+
+- name: Download Pi-hole installer
+  get_url:
+    url: https://install.pi-hole.net
+    dest: /tmp/pihole-install.sh
+    mode: '0755'
+  delegate_to: "{{ dns_pihole_ip }}"
+  tags:
+    - download
+
+- name: Install Pi-hole unattended
+  shell: |
+    export PIHOLE_SKIP_OS_CHECK=true
+    /tmp/pihole-install.sh --unattended
+  delegate_to: "{{ dns_pihole_ip }}"
+  args:
+    creates: /usr/local/bin/pihole
+  tags:
+    - install
+
+- name: Set Pi-hole web admin password
+  shell: |
+    pihole -a -p "{{ pihole_admin_password }}"
+  delegate_to: "{{ dns_pihole_ip }}"
+  no_log: true
+  tags:
+    - config
+    - password
+
+- name: Configure Pi-hole custom DNS settings
+  template:
+    src: custom.list.j2
+    dest: /etc/pihole/custom.list
+    mode: '0644'
+    backup: yes
+  delegate_to: "{{ dns_pihole_ip }}"
+  notify: restart pihole-FTL
+  tags:
+    - config
+
+- name: Configure Pi-hole adlists
+  template:
+    src: adlists.list.j2
+    dest: /etc/pihole/adlists.list
+    mode: '0644'
+    backup: yes
+  delegate_to: "{{ dns_pihole_ip }}"
+  tags:
+    - config
+
+- name: Update Pi-hole gravity (blocklists)
+  shell: pihole -g
+  delegate_to: "{{ dns_pihole_ip }}"
+  tags:
+    - update-blocklists
+
+- name: Ensure Pi-hole services are running
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  loop:
+    - pihole-FTL
+  delegate_to: "{{ dns_pihole_ip }}"
+  tags:
+    - service
+
+- name: Create Pi-hole backup script
+  template:
+    src: pihole-backup.sh.j2
+    dest: /usr/local/bin/pihole-backup.sh
+    mode: '0755'
+  delegate_to: "{{ dns_pihole_ip }}"
+  tags:
+    - backup

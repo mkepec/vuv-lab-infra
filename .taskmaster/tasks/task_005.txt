@@ -1,0 +1,32 @@
+# Task ID: 5
+# Title: Certificate Authority & PKI Infrastructure Setup
+# Status: pending
+# Dependencies: 4
+# Priority: medium
+# Description: Deploy a private Certificate Authority (CA) for the VUV lab, establish a PKI hierarchy, and prepare for automated certificate management for internal services.
+# Details:
+This task involves setting up a robust Certificate Authority (CA) and Public Key Infrastructure (PKI) to secure internal lab services with trusted HTTPS certificates. The CA will be deployed as an LXC container, leveraging the existing Proxmox infrastructure and Ansible for configuration.
+
+**Implementation Steps:**
+1.  **CA Server Provisioning**: Create a new LXC container (e.g., `ca.vuv.lab` with IP `192.168.1.12`) using Terraform. This container will host the private CA, similar to how DNS containers are provisioned.
+2.  **CA Software Installation**: Use Ansible to install and configure a suitable CA software within the LXC container. `Smallstep CA (step-ca)` is recommended for its ease of use, ACME integration, and automation capabilities. Alternatively, a well-scripted OpenSSL setup managed by Ansible can be used.
+3.  **Root CA Generation**: Generate a self-signed Root CA certificate for the `vuv.lab` domain. This certificate will be the trust anchor for the entire lab.
+4.  **Intermediate CA Creation**: Create an Intermediate CA certificate, signed by the Root CA. This Intermediate CA will be responsible for issuing all service certificates, enhancing security by keeping the Root CA offline or highly protected.
+5.  **Certificate Management Configuration**: Configure the CA to support automated certificate issuance and renewal. If using `step-ca`, enable its integrated ACME server. This will allow services (like Traefik) to request and renew certificates automatically using ACME challenges.
+6.  **DNS Integration**: Ensure the CA server's hostname (`ca.vuv.lab`) is registered in the BIND DNS server (Task 4). If using ACME DNS-01 challenges, configure the CA to interact with the BIND server for automated DNS record updates (e.g., via `nsupdate` or an appropriate ACME DNS plugin).
+7.  **Trust Distribution**: Prepare a mechanism to distribute the Root CA certificate to all lab machines and services that need to trust internal certificates (e.g., via an Ansible playbook to add to system trust stores).
+8.  **Certificate Policy**: Define a basic certificate policy for the lab, including certificate lifetimes, key sizes, and naming conventions.
+
+**Integration with other tasks:**
+-   **Task 4 (DNS Infrastructure)**: Essential for name resolution of the CA server and for DNS-01 challenges for certificate validation.
+-   **Task 6 (Traefik Reverse Proxy)**: This CA will provide trusted certificates for Traefik, replacing the need for self-signed certificates and enabling proper HTTPS for all services behind it.
+-   **Web Services (Grafana, Pi-hole, Proxmox, GNS3)**: This task lays the groundwork for enabling HTTPS on these services. For services behind Traefik, Traefik will handle the certificates. For services like Proxmox that might be accessed directly, a mechanism to issue and install certificates from this CA will be prepared.
+
+# Test Strategy:
+1.  **CA LXC Verification**: Confirm the CA LXC container is provisioned by Terraform and accessible via its assigned IP and hostname (`ca.vuv.lab`).
+2.  **CA Service Status**: Verify that the CA software (e.g., `step-ca`) is running correctly within the container.
+3.  **Root & Intermediate CA Verification**: Confirm the Root CA and Intermediate CA certificates are generated and properly chained. Verify their validity and subject/issuer details.
+4.  **Certificate Issuance Test**: Manually request a test certificate for a non-existent service (e.g., `testservice.vuv.lab`) from the Intermediate CA. Verify that the certificate is issued correctly and is trusted by the Root CA.
+5.  **ACME Functionality Test (if applicable)**: If an ACME server is configured, attempt to request a test certificate using an ACME client (e.g., `certbot` in dry-run mode) and verify that the challenge (e.g., DNS-01) is successfully completed.
+6.  **Trust Chain Validation**: On a client machine, attempt to validate the manually issued test certificate against the distributed Root CA to ensure the trust chain is correctly established.
+7.  **DNS Integration Test**: Verify that the CA server can resolve DNS records and, if configured for DNS-01 challenges, can interact with the BIND server to create/delete challenge records.

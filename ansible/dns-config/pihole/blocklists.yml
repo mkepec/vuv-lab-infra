@@ -1,0 +1,79 @@
+---
+# Pi-hole Blocklist Configuration
+# Defines ad blocking and malware filtering lists
+
+pihole_blocklists:
+  # Essential blocklists
+  - name: "StevenBlack Unified Hosts"
+    url: "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
+    enabled: true
+    comment: "Comprehensive ad and malware blocking"
+
+  - name: "Malware Domain List"
+    url: "https://mirror1.malwaredomains.com/files/justdomains"
+    enabled: true
+    comment: "Known malware domains"
+
+  - name: "Cameleon Hosts"
+    url: "http://sysctl.org/cameleon/hosts"
+    enabled: true
+    comment: "Ad servers and unwanted domains"
+
+  - name: "Zeus Tracker"
+    url: "https://zeustracker.abuse.ch/blocklist.php?download=domainblocklist"
+    enabled: true
+    comment: "Zeus malware tracker"
+
+  # Privacy and tracking protection
+  - name: "Disconnect Tracking"
+    url: "https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt"
+    enabled: true
+    comment: "Tracking protection"
+
+  - name: "Disconnect Ads"
+    url: "https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt"
+    enabled: true
+    comment: "Advertisement blocking"
+
+  # Educational institution specific (optional)
+  - name: "Social Media Distractions"
+    url: "https://raw.githubusercontent.com/jmdugan/blocklists/master/corporations/facebook/all"
+    enabled: false
+    comment: "Block social media during class hours (can be enabled if needed)"
+
+  - name: "Streaming Services"
+    url: "https://raw.githubusercontent.com/jmdugan/blocklists/master/corporations/streaming/all"
+    enabled: false
+    comment: "Block bandwidth-heavy streaming (can be enabled if needed)"
+
+# Custom blocking rules
+pihole_blacklist:
+  - "ads.example.com"
+  - "tracker.badsite.com"
+  # Add any specific domains to block
+
+# Whitelist for important domains
+pihole_whitelist:
+  - "carnet.hr"
+  - "vuv.hr"
+  - "moodle.vuv.hr"
+  - "portal.vuv.hr"
+  - "github.com"
+  - "githubusercontent.com"
+  - "docker.io"
+  - "docker.com"
+  - "ubuntu.com"
+  - "canonical.com"
+  - "microsoft.com"
+  - "office.com"
+  - "teams.microsoft.com"
+
+# Educational whitelist
+pihole_educational_whitelist:
+  - "scholar.google.com"
+  - "pubmed.ncbi.nlm.nih.gov"
+  - "ieee.org"
+  - "acm.org"
+  - "coursera.org"
+  - "edx.org"
+  - "khanacademy.org"

@@ -1,0 +1,233 @@
+---
+# Complete DNS Deployment Playbook
+# Orchestrates full DNS infrastructure and configuration deployment
+
+- name: Complete DNS Infrastructure Deployment
+  hosts: localhost
+  gather_facts: yes
+  vars:
+    # DNS Configuration
+    dns_bind_ip: "192.168.1.10"
+    dns_pihole_ip: "192.168.1.11" 
+    bind_domain: "vuv.lab"
+    dns_environment: "{{ dns_environment | default('production') }}"
+    
+    # Proxmox Configuration
+    proxmox_host: "{{ groups['proxmox'][0] | default('192.168.1.190') }}"
+    proxmox_api_token: "{{ vault_proxmox_api_token }}"
+
+  pre_tasks:
+    - name: Validate required variables
+      assert:
+        that:
+          - proxmox_api_token is defined
+          - proxmox_host is defined
+        fail_msg: |
+          Missing required variables:
+          - proxmox_api_token: Set in vault or via -e
+          - proxmox_host: Set in inventory or via -e
+
+    - name: Display complete deployment plan
+      debug:
+        msg:
+          - "=== VUV Lab DNS Complete Deployment ==="
+          - ""
+          - "Phase 1: Infrastructure (LXC + Software)"
+          - "  - Create BIND LXC container ({{ dns_bind_ip }})"
+          - "  - Create Pi-hole LXC container ({{ dns_pihole_ip }})"
+          - "  - Install and configure BIND9"
+          - "  - Install and configure Pi-hole"
+          - "  - Setup networking and security"
+          - ""
+          - "Phase 2: Configuration (DNS Records + Policies)"
+          - "  - Deploy {{ bind_domain }} zone"
+          - "  - Configure reverse DNS"
+          - "  - Setup Pi-hole filtering"
+          - "  - Validate deployment"
+          - ""
+          - "Environment: {{ dns_environment }}"
+          - "Target Proxmox: {{ proxmox_host }}"
+
+    - name: Confirm deployment
+      pause:
+        prompt: |
+          
+          This will deploy the complete DNS infrastructure.
+          
+          WARNING: This will create LXC containers on Proxmox.
+          
+          Press ENTER to continue or Ctrl+C to abort
+
+  tasks:
+    # Phase 1: Infrastructure Deployment
+    - name: "Phase 1: Deploy DNS Infrastructure"
+      include_role:
+        name: dns-infrastructure
+      tags:
+        - phase1
+        - infrastructure
+
+    - name: Wait for DNS infrastructure to be ready
+      wait_for:
+        host: "{{ item }}"
+        port: 53
+        timeout: 120
+      loop:
+        - "{{ dns_bind_ip }}"
+        - "{{ dns_pihole_ip }}"
+      delegate_to: localhost
+
+    - name: Phase 1 completion check
+      debug:
+        msg:
+          - "Phase 1 Complete: DNS Infrastructure Ready"
+          - "BIND: {{ dns_bind_ip }}:53"
+          - "Pi-hole: {{ dns_pihole_ip }}:53"
+
+    # Phase 2: Configuration Deployment  
+    - name: "Phase 2: Deploy DNS Configuration"
+      include_role:
+        name: dns-configuration
+      tags:
+        - phase2
+        - configuration
+
+  post_tasks:
+    # Final Validation
+    - name: Final DNS validation tests
+      block:
+        - name: Test local domain resolution
+          shell: dig +short @{{ dns_bind_ip }} dns-bind.{{ bind_domain }}
+          register: local_dns_test
+          delegate_to: localhost
+
+        - name: Test external resolution via BIND
+          shell: dig +short @{{ dns_bind_ip }} google.com
+          register: external_dns_test
+          delegate_to: localhost
+
+        - name: Test Pi-hole web interface
+          uri:
+            url: "http://{{ dns_pihole_ip }}/admin/"
+            method: GET
+            status_code: 200
+          register: pihole_web_test
+          delegate_to: localhost
+
+      rescue:
+        - name: Display validation failures
+          debug:
+            msg:
+              - "WARNING: Some validation tests failed"
+              - "Check the deployment logs and service status"
+              - "Manual verification may be required"
+
+    # Deployment Summary
+    - name: Display complete deployment summary
+      debug:
+        msg:
+          - "=== VUV Lab DNS Deployment Complete ==="
+          - ""
+          - "Infrastructure Deployed:"
+          - "  ✓ BIND DNS Server: {{ dns_bind_ip }}:53"
+          - "  ✓ Pi-hole Filter: {{ dns_pihole_ip }}:53"
+          - "  ✓ Domain: {{ bind_domain }}"
+          - ""
+          - "Services Available:"
+          - "  • DNS Resolution: {{ dns_bind_ip }}"
+          - "  • Pi-hole Admin: http://{{ dns_pihole_ip }}/admin"
+          - "  • Proxmox: https://{{ proxmox_host }}:8006"
+          - ""
+          - "Validation Results:"
+          - "  • Local DNS: {{ 'OK' if local_dns_test.rc == 0 else 'FAILED' }}"
+          - "  • External DNS: {{ 'OK' if external_dns_test.rc == 0 else 'FAILED' }}"
+          - "  • Pi-hole Web: {{ 'OK' if pihole_web_test.status == 200 else 'FAILED' }}"
+          - ""
+          - "Next Steps:"
+          - "1. Update lab VM DNS to use {{ dns_bind_ip }}"
+          - "2. Test resolution: dig grafana.{{ bind_domain }} @{{ dns_bind_ip }}"
+          - "3. Configure Pi-hole admin password if needed"
+          - "4. Deploy Certificate Authority (Task 5)"
+
+    # Save comprehensive deployment report
+    - name: Generate deployment report
+      copy:
+        content: |
+          VUV Lab DNS Complete Deployment Report
+          =====================================
+          
+          Deployment Date: {{ ansible_date_time.iso8601 }}
+          Environment: {{ dns_environment }}
+          Deployed By: {{ ansible_user | default('unknown') }}
+          
+          Infrastructure:
+          - BIND DNS Server: {{ dns_bind_ip }}:53
+          - Pi-hole Filter: {{ dns_pihole_ip }}:53
+          - Domain: {{ bind_domain }}
+          - Proxmox Host: {{ proxmox_host }}
+          
+          LXC Containers Created:
+          - {{ dns_bind_hostname | default('dns-bind') }} (VMID: {{ dns_bind_vmid | default('110') }})
+          - {{ dns_pihole_hostname | default('dns-pihole') }} (VMID: {{ dns_pihole_vmid | default('111') }})
+          
+          DNS Records Deployed:
+          - Infrastructure services (proxmox, ca, traefik)
+          - Network services (gns3)
+          - Monitoring (prometheus, grafana)
+          - Reverse DNS for 192.168.1.0/24
+          
+          Pi-hole Configuration:
+          - Blocklists: {{ pihole_blocklists | length | default('N/A') }}
+          - Custom DNS: {{ dns_zones | map(attribute='records') | flatten | length | default('N/A') }} records
+          - Web Admin: http://{{ dns_pihole_ip }}/admin
+          
+          Validation Results:
+          - Local DNS Resolution: {{ 'PASS' if local_dns_test.rc == 0 else 'FAIL' }}
+          - External DNS Resolution: {{ 'PASS' if external_dns_test.rc == 0 else 'FAIL' }}
+          - Pi-hole Web Interface: {{ 'PASS' if pihole_web_test.status == 200 else 'FAIL' }}
+          
+          Lab VM Configuration:
+          Configure lab VMs with these DNS settings:
+          Primary DNS: {{ dns_bind_ip }}
+          Secondary DNS: 161.53.72.1 (CARNet)
+          
+          Example netplan configuration:
+          network:
+            ethernets:
+              eth0:
+                nameservers:
+                  addresses:
+                    - {{ dns_bind_ip }}
+                    - 161.53.72.1
+          
+          Test Commands:
+          dig @{{ dns_bind_ip }} {{ bind_domain }}
+          dig @{{ dns_bind_ip }} grafana.{{ bind_domain }}
+          dig @{{ dns_bind_ip }} google.com
+          nslookup -type=PTR {{ dns_bind_ip.split('.')[3] }}.1.168.192.in-addr.arpa {{ dns_bind_ip }}
+          
+          Next Steps:
+          1. Test DNS resolution from lab VMs
+          2. Deploy Certificate Authority (ansible-playbook ca-infrastructure.yml)
+          3. Deploy remaining services (GNS3, monitoring, etc.)
+          4. Configure service-specific DNS records as needed
+          
+          Troubleshooting:
+          - BIND logs: /var/log/bind/
+          - Pi-hole logs: /var/log/pihole.log
+          - Service status: systemctl status bind9 pihole-FTL
+        dest: "{{ playbook_dir }}/dns-complete-deployment-report.txt"
+        mode: '0644'
+      delegate_to: localhost
+
+    - name: Final instructions
+      debug:
+        msg:
+          - ""
+          - "🎉 DNS infrastructure deployment complete!"
+          - ""
+          - "📋 Deployment report: dns-complete-deployment-report.txt"
+          - "🔧 Configure lab VMs to use {{ dns_bind_ip }} as primary DNS"
+          - "🌐 Pi-hole admin: http://{{ dns_pihole_ip }}/admin"
+          - ""
+          - "▶️  Continue with Task 5: Certificate Authority deployment"

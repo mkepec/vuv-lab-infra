@@ -25,6 +25,12 @@ variable "ssh_public_key" {
   type        = string
 }
 
+variable "ssh_public_keys" {
+  description = "List of SSH public keys for VM access"
+  type        = list(string)
+  default     = []
+}
+
 # Network configuration
 variable "network_base" {
   description = "Base network for VMs (e.g., 192.168.1)"

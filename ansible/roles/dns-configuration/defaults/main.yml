@@ -1,0 +1,49 @@
+---
+# DNS Configuration Role Default Variables
+
+# DNS Environment
+dns_environment: "production"
+
+# DNS Servers (from dns-infrastructure role)
+dns_bind_ip: "192.168.1.10"
+dns_pihole_ip: "192.168.1.11"
+bind_domain: "vuv.lab"
+
+# Default zone settings
+default_zone_ttl: 86400
+default_zone_refresh: 3600
+default_zone_retry: 1800
+default_zone_expire: 604800
+default_zone_minimum: 86400
+
+# Pi-hole API settings (optional)
+pihole_api_token: ""
+pihole_use_api: false
+
+# Configuration validation settings
+validate_ip_addresses: true
+validate_dns_syntax: true
+fail_on_duplicate_records: true
+
+# Service management
+reload_bind_after_changes: true
+restart_pihole_after_changes: true
+update_gravity_after_changes: true
+
+# Default empty lists (will be populated from dns-config files)
+dns_zones: []
+dns_reverse_zones: []
+pihole_blocklists: []
+pihole_whitelist: []
+pihole_blacklist: []
+pihole_custom_dns: []
+pihole_additional_custom: []
+
+# Backup settings
+backup_zone_files: true
+backup_pihole_config: true
+
+# Logging and validation
+enable_dns_validation: true
+create_validation_report: true
+dns_validation_timeout: 30

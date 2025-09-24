@@ -1,0 +1,110 @@
+---
+# Pi-hole Configuration Tasks
+
+- name: Update Pi-hole custom DNS records
+  template:
+    src: custom.list.j2
+    dest: /etc/pihole/custom.list
+    mode: '0644'
+    backup: yes
+  vars:
+    pihole_custom_dns: "{{ dns_zones | map(attribute='records') | flatten | selectattr('type', 'equalto', 'A') | list }}"
+  delegate_to: "{{ dns_pihole_ip }}"
+  notify: restart pihole-FTL
+  tags:
+    - custom-dns
+
+- name: Update Pi-hole adlists
+  template:
+    src: adlists.list.j2
+    dest: /etc/pihole/adlists.list
+    mode: '0644'
+    backup: yes
+  delegate_to: "{{ dns_pihole_ip }}"
+  notify: update pihole gravity
+  tags:
+    - adlists
+
+- name: Configure Pi-hole whitelist
+  lineinfile:
+    path: /etc/pihole/whitelist.txt
+    line: "{{ item }}"
+    create: yes
+  loop: "{{ pihole_whitelist | default([]) }}"
+  delegate_to: "{{ dns_pihole_ip }}"
+  notify: restart pihole-FTL
+  tags:
+    - whitelist
+
+- name: Configure Pi-hole blacklist
+  lineinfile:
+    path: /etc/pihole/blacklist.txt
+    line: "{{ item }}"
+    create: yes
+  loop: "{{ pihole_blacklist | default([]) }}"
+  delegate_to: "{{ dns_pihole_ip }}"
+  notify: restart pihole-FTL
+  tags:
+    - blacklist
+
+- name: Update Pi-hole DNS settings via API
+  uri:
+    url: "http://{{ dns_pihole_ip }}/admin/api.php"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      auth: "{{ pihole_api_token | default('') }}"
+      action: "setdns"
+      dns1: "{{ pihole_dns_1 }}"
+      dns2: "{{ pihole_dns_2 }}"
+  delegate_to: localhost
+  when: pihole_api_token is defined
+  tags:
+    - dns-settings
+    - api
+
+- name: Configure Pi-hole conditional forwarding
+  uri:
+    url: "http://{{ dns_pihole_ip }}/admin/api.php"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      auth: "{{ pihole_api_token | default('') }}"
+      action: "setconditionalforwarding"
+      active: "{{ pihole_conditional_forwarding | lower }}"
+      ip: "{{ dns_bind_ip if pihole_conditional_forwarding else '' }}"
+      domain: "{{ bind_domain if pihole_conditional_forwarding else '' }}"
+  delegate_to: localhost
+  when: 
+    - pihole_api_token is defined
+    - pihole_conditional_forwarding is defined
+  tags:
+    - conditional-forwarding
+    - api
+
+- name: Update Pi-hole gravity database
+  shell: pihole -g
+  delegate_to: "{{ dns_pihole_ip }}"
+  tags:
+    - gravity-update
+
+- name: Verify Pi-hole web interface
+  uri:
+    url: "http://{{ dns_pihole_ip }}/admin/"
+    method: GET
+    status_code: 200
+  delegate_to: localhost
+  tags:
+    - verify-web
+
+- name: Display Pi-hole configuration summary
+  debug:
+    msg:
+      - "Pi-hole configuration updated"
+      - "Custom DNS records: {{ (dns_zones | map(attribute='records') | flatten | selectattr('type', 'equalto', 'A') | list) | length }}"
+      - "Adlists configured: {{ pihole_adlists | length | default(0) }}"
+      - "Whitelist entries: {{ pihole_whitelist | length | default(0) }}"
+      - "Blacklist entries: {{ pihole_blacklist | length | default(0) }}"
+      - "Web interface: http://{{ dns_pihole_ip }}/admin/"
+  tags:
+    - summary

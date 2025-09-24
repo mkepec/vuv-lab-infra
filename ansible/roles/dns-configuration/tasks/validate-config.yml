@@ -1,0 +1,77 @@
+---
+# DNS Configuration Validation Tasks
+
+- name: Validate zone data structure
+  assert:
+    that:
+      - item.zone is defined
+      - item.zone.name is defined
+      - item.records is defined
+      - item.records is iterable
+    fail_msg: "Invalid zone configuration structure in {{ item }}"
+  loop: "{{ dns_zones | default([]) }}"
+  when: dns_zones is defined
+  tags:
+    - validate-zones
+
+- name: Validate DNS records format
+  assert:
+    that:
+      - record.name is defined
+      - record.type is defined
+      - record.value is defined
+      - record.type in ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'PTR', 'NS', 'SRV']
+    fail_msg: "Invalid DNS record format: {{ record }}"
+  loop: "{{ item.records }}"
+  loop_control:
+    loop_var: record
+  when: dns_zones is defined
+  with_items: "{{ dns_zones | default([]) }}"
+  tags:
+    - validate-records
+
+- name: Check for duplicate DNS records
+  fail:
+    msg: "Duplicate DNS record found: {{ item.name }}.{{ zone.zone.name }}"
+  vars:
+    all_records: "{{ dns_zones | selectattr('records', 'defined') | map(attribute='records') | list | flatten }}"
+    record_names: "{{ all_records | map(attribute='name') | list }}"
+  when: 
+    - dns_zones is defined
+    - record_names.count(item.name) > 1
+  loop: "{{ all_records }}"
+  tags:
+    - validate-duplicates
+
+- name: Validate Pi-hole configuration
+  assert:
+    that:
+      - pihole_blocklists is defined
+      - pihole_blocklists is iterable
+    fail_msg: "Invalid Pi-hole blocklist configuration"
+  when: pihole_blocklists is defined
+  tags:
+    - validate-pihole
+
+- name: Validate IP address format
+  assert:
+    that:
+      - record.value | ipaddr
+    fail_msg: "Invalid IP address format: {{ record.value }}"
+  loop: "{{ item.records | selectattr('type', 'equalto', 'A') | list }}"
+  loop_control:
+    loop_var: record
+  when: dns_zones is defined
+  with_items: "{{ dns_zones | default([]) }}"
+  tags:
+    - validate-ip-addresses
+
+- name: Display validation summary
+  debug:
+    msg:
+      - "Validation completed successfully"
+      - "Zones configured: {{ dns_zones | length | default(0) }}"
+      - "Total DNS records: {{ dns_zones | map(attribute='records') | map('length') | sum | default(0) }}"
+      - "Pi-hole blocklists: {{ pihole_blocklists | length | default(0) }}"
+  tags:
+    - validate-summary

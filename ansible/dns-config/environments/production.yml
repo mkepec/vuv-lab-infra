@@ -1,0 +1,46 @@
+---
+# Production Environment DNS Configuration
+# Used for the main VUV lab infrastructure
+
+dns_environment: "production"
+
+# External DNS forwarders (CARNet)
+external_dns_servers:
+  - "161.53.72.1"    # CARNet DNS primary
+  - "161.53.72.6"    # CARNet DNS secondary
+
+# BIND configuration for production
+bind_listen_ipv4: "192.168.1.10"
+bind_listen_ipv6: "none"
+bind_allow_query:
+  - "192.168.1.0/24"
+  - "127.0.0.1"
+bind_allow_recursion:
+  - "192.168.1.0/24"
+  - "127.0.0.1"
+
+# Pi-hole production settings
+pihole_dns_1: "161.53.72.1"  # CARNet primary
+pihole_dns_2: "161.53.72.6"  # CARNet secondary
+pihole_conditional_forwarding: true
+pihole_conditional_forwarding_ip: "192.168.1.10"  # BIND server
+pihole_conditional_forwarding_domain: "vuv.lab"
+
+# Security settings for production
+bind_log_queries: true
+bind_log_level: "info"
+pihole_query_logging: true
+
+# Network settings
+lab_network_cidr: "192.168.1.0/24"
+lab_network_gateway: "192.168.1.1"
+
+# Service URLs for production
+dns_bind_url: "http://192.168.1.10"
+pihole_admin_url: "http://192.168.1.11/admin"
+proxmox_url: "https://192.168.1.190:8006"
+
+# Additional production settings
+enable_firewall: true
+enable_fail2ban: true
+backup_configs: true

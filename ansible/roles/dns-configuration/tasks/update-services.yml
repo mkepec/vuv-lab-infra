@@ -1,0 +1,60 @@
+---
+# DNS Services Update Tasks
+
+- name: Reload BIND9 configuration
+  systemd:
+    name: bind9
+    state: reloaded
+  delegate_to: "{{ dns_bind_ip }}"
+  tags:
+    - reload-bind
+
+- name: Restart Pi-hole FTL service
+  systemd:
+    name: pihole-FTL
+    state: restarted
+  delegate_to: "{{ dns_pihole_ip }}"
+  tags:
+    - restart-pihole
+
+- name: Wait for BIND9 to be ready
+  wait_for:
+    host: "{{ dns_bind_ip }}"
+    port: 53
+    timeout: 30
+  delegate_to: localhost
+  tags:
+    - wait-bind
+
+- name: Wait for Pi-hole to be ready
+  wait_for:
+    host: "{{ dns_pihole_ip }}"
+    port: 53
+    timeout: 30
+  delegate_to: localhost
+  tags:
+    - wait-pihole
+
+- name: Flush DNS caches
+  shell: |
+    rndc flush
+  delegate_to: "{{ dns_bind_ip }}"
+  ignore_errors: yes
+  tags:
+    - flush-cache
+
+- name: Update Pi-hole gravity after configuration changes
+  shell: pihole -g
+  delegate_to: "{{ dns_pihole_ip }}"
+  tags:
+    - update-gravity
+
+- name: Display service status
+  debug:
+    msg:
+      - "DNS services updated successfully"
+      - "BIND9: Ready on {{ dns_bind_ip }}:53"
+      - "Pi-hole: Ready on {{ dns_pihole_ip }}:53"
+      - "Configuration deployment complete"
+  tags:
+    - status

@@ -1,0 +1,39 @@
+---
+# DNS Infrastructure Role Handlers
+
+- name: restart bind9
+  systemd:
+    name: bind9
+    state: restarted
+    daemon_reload: yes
+  delegate_to: "{{ dns_bind_ip }}"
+
+- name: reload bind9
+  systemd:
+    name: bind9
+    state: reloaded
+  delegate_to: "{{ dns_bind_ip }}"
+
+- name: restart pihole-FTL
+  systemd:
+    name: pihole-FTL
+    state: restarted
+    daemon_reload: yes
+  delegate_to: "{{ dns_pihole_ip }}"
+
+- name: reload pihole-FTL
+  systemd:
+    name: pihole-FTL
+    state: reloaded
+  delegate_to: "{{ dns_pihole_ip }}"
+
+- name: apply netplan
+  command: netplan apply
+  delegate_to: "{{ item }}"
+  loop:
+    - "{{ dns_bind_ip }}"
+    - "{{ dns_pihole_ip }}"
+
+- name: update pihole gravity
+  shell: pihole -g
+  delegate_to: "{{ dns_pihole_ip }}"

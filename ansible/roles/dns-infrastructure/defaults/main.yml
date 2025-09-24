@@ -1,0 +1,93 @@
+---
+# DNS Infrastructure Role Default Variables
+
+# Proxmox Configuration
+proxmox_host: "{{ groups['proxmox'][0] | default('192.168.1.190') }}"
+proxmox_node: "pve"
+proxmox_api_user: "terraform@pve!terraform-token"
+proxmox_api_password: "{{ proxmox_api_token }}"
+proxmox_storage: "local-lvm"
+
+# LXC Template
+lxc_template: "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
+
+# Network Configuration
+lab_network_cidr: "192.168.1.0/24"
+lab_network_gateway: "192.168.1.1"
+external_dns_servers:
+  - "161.53.72.1"    # CARNet DNS primary
+  - "161.53.72.6"    # CARNet DNS secondary
+
+# BIND DNS Server Configuration
+dns_bind_vmid: 110
+dns_bind_hostname: "dns-bind"
+dns_bind_ip: "192.168.1.10"
+dns_bind_cores: 1
+dns_bind_memory: 1024
+dns_bind_swap: 512
+dns_bind_disk: "8"
+dns_bind_network: 
+  net0: "name=eth0,bridge=vmbr0,firewall=1,gw={{ lab_network_gateway }},ip={{ dns_bind_ip }}/24,type=veth"
+
+# Pi-hole DNS Filter Configuration  
+dns_pihole_vmid: 111
+dns_pihole_hostname: "dns-pihole"
+dns_pihole_ip: "192.168.1.11"
+dns_pihole_cores: 1
+dns_pihole_memory: 1024
+dns_pihole_swap: 512
+dns_pihole_disk: "8"
+dns_pihole_network:
+  net0: "name=eth0,bridge=vmbr0,firewall=1,gw={{ lab_network_gateway }},ip={{ dns_pihole_ip }}/24,type=veth"
+
+# BIND9 Configuration
+bind_domain: "vuv.lab"
+bind_listen_ipv4: "{{ dns_bind_ip }}"
+bind_listen_ipv6: "none"
+bind_allow_query: 
+  - "{{ lab_network_cidr }}"
+  - "127.0.0.1"
+bind_allow_recursion:
+  - "{{ lab_network_cidr }}"  
+  - "127.0.0.1"
+bind_forwarders:
+  - "{{ dns_pihole_ip }}"
+bind_forward_policy: "only"
+
+# BIND Logging
+bind_log_directory: "/var/log/bind"
+bind_log_queries: true
+bind_log_level: "info"
+
+# Pi-hole Configuration
+pihole_interface: "eth0"
+pihole_ipv4_address: "{{ dns_pihole_ip }}/24"
+pihole_ipv6_address: ""
+pihole_query_logging: true
+pihole_install_web_server: true
+pihole_install_web_interface: true
+pihole_lighttpd_enabled: true
+pihole_admin_password: "{{ vault_pihole_password | default('changeme123') }}"
+pihole_dns_1: "161.53.72.1"  # CARNet primary
+pihole_dns_2: "161.53.72.6"  # CARNet secondary
+pihole_dns_fqdn_required: false
+pihole_dns_bogus_priv: true
+pihole_dnssec: false
+pihole_conditional_forwarding: false
+
+# Pi-hole Default Blocklists
+pihole_adlists:
+  - "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
+  - "https://mirror1.malwaredomains.com/files/justdomains"
+  - "http://sysctl.org/cameleon/hosts"
+  - "https://zeustracker.abuse.ch/blocklist.php?download=domainblocklist"
+  - "https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt"
+  - "https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt"
+
+# Pi-hole Custom DNS (will be populated from dns-config data)
+pihole_custom_dns: []
+
+# Firewall Settings
+dns_firewall_enabled: true
+ssh_allowed_ips: 
+  - "{{ lab_network_cidr }}"

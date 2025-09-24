@@ -1,0 +1,117 @@
+---
+# DNS Services Networking and Firewall Configuration
+
+# BIND9 Firewall Rules
+- name: Configure UFW firewall for BIND DNS
+  ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    from_ip: "{{ item.from }}"
+    comment: "{{ item.comment }}"
+  loop:
+    - { port: "53", proto: "udp", from: "{{ lab_network_cidr }}", comment: "BIND DNS UDP from lab network" }
+    - { port: "53", proto: "tcp", from: "{{ lab_network_cidr }}", comment: "BIND DNS TCP from lab network" }
+    - { port: "953", proto: "tcp", from: "{{ dns_pihole_ip }}", comment: "BIND control from Pi-hole" }
+  delegate_to: "{{ dns_bind_ip }}"
+  tags:
+    - firewall
+    - bind
+
+- name: Enable UFW on BIND container
+  ufw:
+    state: enabled
+    policy: deny
+    direction: incoming
+  delegate_to: "{{ dns_bind_ip }}"
+  tags:
+    - firewall
+    - bind
+
+# Pi-hole Firewall Rules  
+- name: Configure UFW firewall for Pi-hole
+  ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    from_ip: "{{ item.from }}"
+    comment: "{{ item.comment }}"
+  loop:
+    - { port: "53", proto: "udp", from: "{{ dns_bind_ip }}", comment: "DNS from BIND server" }
+    - { port: "53", proto: "tcp", from: "{{ dns_bind_ip }}", comment: "DNS from BIND server" }
+    - { port: "80", proto: "tcp", from: "{{ lab_network_cidr }}", comment: "Pi-hole web admin from lab network" }
+    - { port: "4711", proto: "tcp", from: "{{ lab_network_cidr }}", comment: "Pi-hole FTL API from lab network" }
+  delegate_to: "{{ dns_pihole_ip }}"
+  tags:
+    - firewall  
+    - pihole
+
+- name: Enable UFW on Pi-hole container
+  ufw:
+    state: enabled
+    policy: deny
+    direction: incoming
+  delegate_to: "{{ dns_pihole_ip }}"
+  tags:
+    - firewall
+    - pihole
+
+# Network Configuration
+- name: Configure static network on BIND container
+  template:
+    src: netplan-static.yaml.j2
+    dest: /etc/netplan/01-dns-static.yaml
+    mode: '0600'
+  vars:
+    static_ip: "{{ dns_bind_ip }}"
+    gateway: "{{ lab_network_gateway }}"
+    dns_servers: "{{ external_dns_servers }}"
+  delegate_to: "{{ dns_bind_ip }}"
+  notify: apply netplan
+  tags:
+    - networking
+    - bind
+
+- name: Configure static network on Pi-hole container
+  template:
+    src: netplan-static.yaml.j2
+    dest: /etc/netplan/01-dns-static.yaml
+    mode: '0600'
+  vars:
+    static_ip: "{{ dns_pihole_ip }}"
+    gateway: "{{ lab_network_gateway }}"
+    dns_servers: "{{ external_dns_servers }}"
+  delegate_to: "{{ dns_pihole_ip }}"
+  notify: apply netplan
+  tags:
+    - networking
+    - pihole
+
+# DNS Service Integration
+- name: Configure BIND to forward to Pi-hole
+  lineinfile:
+    path: /etc/bind/named.conf.options
+    regexp: '^\s*forwarders'
+    line: '    forwarders { {{ dns_pihole_ip }}; };'
+    insertafter: 'options {'
+  delegate_to: "{{ dns_bind_ip }}"
+  notify: restart bind9
+  tags:
+    - integration
+    - bind
+
+- name: Verify network connectivity between DNS servers
+  shell: |
+    ping -c 3 {{ dns_pihole_ip }}
+  delegate_to: "{{ dns_bind_ip }}"
+  tags:
+    - verify
+    - networking
+
+- name: Verify Pi-hole can reach external DNS
+  shell: |
+    ping -c 3 {{ external_dns_servers[0] }}
+  delegate_to: "{{ dns_pihole_ip }}"
+  tags:
+    - verify
+    - networking

@@ -1,0 +1,109 @@
+---
+# DNS Configuration Deployment Playbook
+# Deploys DNS records and policies from data-driven configuration
+
+- name: Deploy DNS Configuration (Records + Policies)
+  hosts: localhost
+  gather_facts: yes
+  vars:
+    # DNS servers from infrastructure deployment
+    dns_bind_ip: "192.168.1.10"
+    dns_pihole_ip: "192.168.1.11"
+    bind_domain: "vuv.lab"
+    
+    # Environment (can be overridden with -e dns_environment=development)
+    dns_environment: "{{ dns_environment | default('production') }}"
+
+  pre_tasks:
+    - name: Check DNS infrastructure is available
+      wait_for:
+        host: "{{ item }}"
+        port: 53
+        timeout: 30
+      loop:
+        - "{{ dns_bind_ip }}"
+        - "{{ dns_pihole_ip }}"
+      delegate_to: localhost
+
+    - name: Display configuration deployment information  
+      debug:
+        msg:
+          - "=== DNS Configuration Deployment ==="
+          - "Environment: {{ dns_environment }}"
+          - "BIND Server: {{ dns_bind_ip }}"
+          - "Pi-hole Server: {{ dns_pihole_ip }}"
+          - "Domain: {{ bind_domain }}"
+
+  roles:
+    - role: dns-configuration
+      tags:
+        - configuration
+        - dns-config
+
+  post_tasks:
+    - name: Test basic DNS functionality
+      shell: |
+        dig +short @{{ dns_bind_ip }} {{ bind_domain }}
+      delegate_to: localhost
+      register: dns_basic_test
+      ignore_errors: yes
+
+    - name: Test external DNS resolution
+      shell: |
+        dig +short @{{ dns_bind_ip }} google.com
+      delegate_to: localhost  
+      register: dns_external_test
+      ignore_errors: yes
+
+    - name: Display deployment results
+      debug:
+        msg:
+          - "=== DNS Configuration Deployment Complete ==="
+          - "Domain Resolution: {{ 'OK' if dns_basic_test.rc == 0 else 'FAILED' }}"
+          - "External Resolution: {{ 'OK' if dns_external_test.rc == 0 else 'FAILED' }}"
+          - "Pi-hole Admin: http://{{ dns_pihole_ip }}/admin"
+          - ""
+          - "Test Commands:"
+          - "  dig @{{ dns_bind_ip }} grafana.{{ bind_domain }}"
+          - "  dig @{{ dns_bind_ip }} google.com"
+          - "  nslookup proxmox.{{ bind_domain }} {{ dns_bind_ip }}"
+
+    - name: Update lab VMs DNS configuration instructions
+      debug:
+        msg:
+          - "=== Update Lab VM DNS Settings ==="
+          - "Configure lab VMs with these DNS settings:"
+          - "  Primary DNS: {{ dns_bind_ip }}"
+          - "  Secondary DNS: 161.53.72.1 (CARNet)"
+          - ""
+          - "Ubuntu/Debian: Edit /etc/netplan/01-netcfg.yaml"
+          - "Add under 'nameservers: addresses:'"
+          - "  - {{ dns_bind_ip }}"
+          - "  - 161.53.72.1"
+          - ""
+          - "Then run: sudo netplan apply"
+
+    - name: Save configuration summary
+      copy:
+        content: |
+          DNS Configuration Deployment Summary  
+          Deployed: {{ ansible_date_time.iso8601 }}
+          Environment: {{ dns_environment }}
+          
+          Services:
+          - BIND DNS: {{ dns_bind_ip }}:53
+          - Pi-hole Filter: {{ dns_pihole_ip }}:53
+          - Domain: {{ bind_domain }}
+          
+          Test Results:
+          - Local Domain: {{ 'OK' if dns_basic_test.rc == 0 else 'FAILED' }}
+          - External DNS: {{ 'OK' if dns_external_test.rc == 0 else 'FAILED' }}
+          
+          Lab VM DNS Configuration:
+          Primary: {{ dns_bind_ip }}
+          Secondary: 161.53.72.1
+          
+          Validation Report: dns-validation-report.txt
+        dest: "{{ playbook_dir }}/dns-configuration-deployment.txt"
+        mode: '0644'
+      delegate_to: localhost

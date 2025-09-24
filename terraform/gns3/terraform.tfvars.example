@@ -14,6 +14,12 @@ template_name = "ubuntu2404-cloud"
 # SSH public key (paste content from ~/.ssh/proxmox_key.pub)
 ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... your-key-here"
 
+# Multiple SSH public keys (optional - if you want to use both Windows and Linux keys)
+# ssh_public_keys = [
+#   "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... windows-key-here",
+#   "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... linux-key-here"
+# ]
+
 # Network configuration
 network_base = "192.168.1"             # Base network for static IPs
 network_gateway = "192.168.1.1"        # Your network gateway

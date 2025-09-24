@@ -1,0 +1,92 @@
+---
+# BIND Zone File Generation Tasks
+
+- name: Ensure BIND zones directory exists
+  file:
+    path: /etc/bind/zones
+    state: directory
+    owner: bind
+    group: bind
+    mode: '0755'
+  delegate_to: "{{ dns_bind_ip }}"
+  tags:
+    - directories
+
+- name: Generate forward zone files
+  template:
+    src: zone.db.j2
+    dest: "/etc/bind/zones/{{ item.zone.name }}"
+    owner: bind
+    group: bind
+    mode: '0644'
+    backup: yes
+  delegate_to: "{{ dns_bind_ip }}"
+  loop: "{{ dns_zones | default([]) }}"
+  notify: reload bind9
+  tags:
+    - forward-zones
+
+- name: Generate reverse zone files
+  template:
+    src: reverse-zone.db.j2
+    dest: "/etc/bind/zones/reverse.{{ item.network | replace('/', '-') }}.in-addr.arpa"
+    owner: bind
+    group: bind
+    mode: '0644'
+    backup: yes
+  delegate_to: "{{ dns_bind_ip }}"
+  loop: "{{ dns_reverse_zones | default([]) }}"
+  notify: reload bind9
+  tags:
+    - reverse-zones
+
+- name: Update named.conf.local with zone definitions
+  template:
+    src: named.conf.local.j2
+    dest: /etc/bind/named.conf.local
+    owner: bind
+    group: bind
+    mode: '0644'
+    backup: yes
+  delegate_to: "{{ dns_bind_ip }}"
+  notify: reload bind9
+  tags:
+    - zone-config
+
+- name: Check zone file syntax
+  shell: |
+    named-checkzone {{ item.zone.name }} /etc/bind/zones/{{ item.zone.name }}
+  delegate_to: "{{ dns_bind_ip }}"
+  loop: "{{ dns_zones | default([]) }}"
+  register: zone_syntax_check
+  failed_when: zone_syntax_check.rc != 0
+  tags:
+    - syntax-check
+
+- name: Check reverse zone file syntax  
+  shell: |
+    named-checkzone {{ item.network }}.in-addr.arpa /etc/bind/zones/reverse.{{ item.network | replace('/', '-') }}.in-addr.arpa
+  delegate_to: "{{ dns_bind_ip }}"
+  loop: "{{ dns_reverse_zones | default([]) }}"
+  register: reverse_zone_syntax_check
+  failed_when: reverse_zone_syntax_check.rc != 0
+  tags:
+    - syntax-check
+
+- name: Check BIND configuration syntax
+  shell: named-checkconf /etc/bind/named.conf
+  delegate_to: "{{ dns_bind_ip }}"
+  register: bind_config_check
+  failed_when: bind_config_check.rc != 0
+  tags:
+    - config-check
+
+- name: Display zone generation summary
+  debug:
+    msg:
+      - "Zone files generated successfully"
+      - "Forward zones: {{ dns_zones | map(attribute='zone.name') | list }}"
+      - "Reverse zones: {{ dns_reverse_zones | map(attribute='network') | list | default([]) }}"
+      - "BIND configuration syntax: {{ 'Valid' if bind_config_check.rc == 0 else 'Invalid' }}"
+  tags:
+    - summary

@@ -13,3 +13,8 @@
 # Phase 3: Security Hardening
 - import_playbook: playbooks/security_hardening.yml
 
+# Phase 4: DNS Infrastructure (BIND + Pi-hole)
+# Optional: Set deploy_dns=false to skip DNS deployment
+- import_playbook: playbooks/dns-complete.yml
+  when: deploy_dns | default(false) | bool
+

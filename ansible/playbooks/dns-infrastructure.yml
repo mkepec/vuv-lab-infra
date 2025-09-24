@@ -1,0 +1,78 @@
+---
+# DNS Infrastructure Deployment Playbook
+# Provisions LXC containers and installs DNS software (BIND9 + Pi-hole)
+
+- name: Deploy DNS Infrastructure (LXC + Software)
+  hosts: localhost
+  gather_facts: yes
+  vars:
+    # Override these in inventory or via -e
+    proxmox_host: "{{ groups['proxmox'][0] | default('192.168.1.190') }}"
+    proxmox_api_token: "{{ vault_proxmox_api_token }}"
+    dns_bind_ip: "192.168.1.10"
+    dns_pihole_ip: "192.168.1.11"
+
+  pre_tasks:
+    - name: Check required variables
+      assert:
+        that:
+          - proxmox_api_token is defined
+          - proxmox_host is defined
+        fail_msg: "Required variables not defined. Set proxmox_api_token and proxmox_host"
+
+    - name: Display deployment information
+      debug:
+        msg:
+          - "=== DNS Infrastructure Deployment ==="
+          - "Proxmox Host: {{ proxmox_host }}"
+          - "BIND DNS Server: {{ dns_bind_ip }}"
+          - "Pi-hole Filter: {{ dns_pihole_ip }}"
+          - "Domain: vuv.lab"
+
+  roles:
+    - role: dns-infrastructure
+      tags:
+        - infrastructure
+        - dns-infra
+
+  post_tasks:
+    - name: Wait for DNS services to be fully operational
+      wait_for:
+        host: "{{ item }}"
+        port: 53
+        timeout: 60
+      loop:
+        - "{{ dns_bind_ip }}"
+        - "{{ dns_pihole_ip }}"
+      delegate_to: localhost
+
+    - name: Display deployment summary
+      debug:
+        msg:
+          - "=== DNS Infrastructure Deployment Complete ==="
+          - "BIND DNS: {{ dns_bind_ip }}:53"
+          - "Pi-hole Web: http://{{ dns_pihole_ip }}/admin"
+          - "Next: Run dns-configuration.yml to deploy DNS records"
+
+    - name: Save deployment information
+      copy:
+        content: |
+          DNS Infrastructure Deployment Summary
+          Deployed: {{ ansible_date_time.iso8601 }}
+          
+          Services:
+          - BIND DNS Server: {{ dns_bind_ip }}:53
+          - Pi-hole Filter: {{ dns_pihole_ip }}:53
+          - Pi-hole Web Admin: http://{{ dns_pihole_ip }}/admin
+          
+          LXC Containers:
+          - BIND Container: {{ dns_bind_hostname | default('dns-bind') }}
+          - Pi-hole Container: {{ dns_pihole_hostname | default('dns-pihole') }}
+          
+          Next Steps:
+          1. Run: ansible-playbook dns-configuration.yml
+          2. Update VM DNS settings to use {{ dns_bind_ip }}
+          3. Test DNS resolution: dig @{{ dns_bind_ip }} vuv.lab
+        dest: "{{ playbook_dir }}/dns-infrastructure-deployment.txt"
+        mode: '0644'
+      delegate_to: localhost

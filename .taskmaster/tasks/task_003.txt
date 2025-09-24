@@ -1,0 +1,43 @@
+# Task ID: 3
+# Title: Basic Ansible Configuration Management
+# Status: done
+# Dependencies: 2
+# Priority: high
+# Description: Set up a static Ansible inventory for VM management, develop basic playbooks for system configuration, SSH key management, and initial security hardening.
+# Details:
+Create a static Ansible inventory file (`hosts`) to manage VMs provisioned by Terraform. Develop basic playbooks to perform common tasks such as user setup, SSH key deployment, system updates (`apt update/upgrade`), and essential security hardening (e.g., basic firewall rules, disabling password authentication for SSH).
+
+# Test Strategy:
+Execute Ansible playbooks on provisioned VMs. Verify that user accounts are created correctly, SSH access works with keys, system packages are updated, and basic security configurations are applied.
+
+# Subtasks:
+## 1. Initialize Ansible Project Structure and Configuration [done]
+### Dependencies: None
+### Description: Create the foundational directory structure for Ansible and configure basic settings.
+### Details:
+Create the `ansible/` directory at the project root. Inside `ansible/`, create `ansible.cfg` with basic configurations (e.g., inventory path, remote user `vuvadmin`, SSH connection type). Establish `ansible/playbooks/` and `ansible/roles/` directories for future organization.
+
+## 2. Develop Static Inventory and Integrate with Terraform Outputs [done]
+### Dependencies: 3.1
+### Description: Create a static Ansible inventory file and enhance Terraform outputs to facilitate inventory population.
+### Details:
+Create `ansible/inventory/hosts` to define VM groups (e.g., `[all]`, `[vms]`, `[management]`). Manually add placeholder entries for VMs provisioned by Terraform. Modify `terraform/outputs.tf` to output VM IP addresses and hostnames in a structured format (e.g., JSON or plain text list) that can be easily copied or parsed for the static inventory.
+
+## 3. Create Basic Connectivity and SSH Key Management Playbook [done]
+### Dependencies: 3.1, 3.2
+### Description: Develop a playbook to test Ansible connectivity and manage SSH keys for administrative users.
+### Details:
+Create `ansible/playbooks/initial_setup.yml`. This playbook should: 1) Ping target hosts to verify SSH connectivity using the `vuvadmin` user and the SSH key deployed by cloud-init. 2) Ensure the `vuvadmin` user has the correct SSH public key. 3) Optionally, add an additional administrative user (e.g., `ansible_admin`) and deploy their SSH public key.
+
+## 4. Implement System Update and Package Management Playbook [done]
+### Dependencies: 3.1, 3.2, 3.3
+### Description: Develop a playbook to perform system updates and install essential packages on managed VMs.
+### Details:
+Create `ansible/playbooks/system_updates.yml`. This playbook will: 1) Perform `apt update` and `apt upgrade` on all target VMs. 2) Install a set of common utility packages (e.g., `htop`, `git`, `vim`, `curl`, `wget`). 3) Configure `unattended-upgrades` for automatic security updates.
+
+## 5. Develop Basic Security Hardening Playbook [done]
+### Dependencies: 3.1, 3.2, 3.3
+### Description: Create a playbook to apply essential security hardening measures, including firewall rules and SSH configuration.
+### Details:
+Create `ansible/playbooks/security_hardening.yml`. This playbook should: 1) Install and configure `ufw` (Uncomplicated Firewall) to allow SSH (port 22) and deny all other incoming connections by default. 2) Ensure `PasswordAuthentication no` is set in `/etc/ssh/sshd_config` to disable password-based SSH logins. 3) Restart the SSH service to apply changes. 4) Ensure `rsyslog` is installed and running for basic logging.
+

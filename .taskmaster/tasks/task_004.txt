@@ -1,0 +1,30 @@
+# Task ID: 4
+# Title: DNS Infrastructure Deployment (BIND + Pi-hole)
+# Status: not_started
+# Dependencies: 2, 3
+# Priority: high
+# Description: Deploy a robust DNS infrastructure using BIND and Pi-hole within LXC containers on Proxmox, establishing an authoritative internal DNS and a filtering/ad-blocking layer. Manage all DNS configurations and records via Ansible and GitOps.
+# Details:
+The new DNS architecture will consist of two LXC containers deployed on Proxmox:
+
+1.  **BIND LXC Container (192.168.1.10)**: Will serve as the authoritative DNS server for the `vuv.lab` domain.
+2.  **Pi-hole LXC Container (192.168.1.11)**: Will provide DNS filtering, ad blocking, and act as an upstream resolver for BIND.
+
+The intended DNS request flow is: Lab VMs → BIND (for `vuv.lab` and forwarding non-`vuv.lab` queries) → Pi-hole (filtering and upstream resolution) → CARNet DNS.
+
+**Implementation Steps:**
+*   **LXC Container Provisioning**: Utilize the `dns-infrastructure` Ansible role to define and provision the BIND and Pi-hole LXC containers on Proxmox. This role will also handle the installation of BIND9 and Pi-hole software within their respective containers, ensuring they are configured with the specified IP addresses (192.168.1.10 for BIND, 192.168.1.11 for Pi-hole).
+*   **BIND Configuration**: Configure BIND as an authoritative server for the `vuv.lab` domain. Set BIND to forward all non-authoritative queries to the Pi-hole LXC container (192.168.1.11).
+*   **Pi-hole Configuration**: Configure Pi-hole to use CARNet DNS servers as its primary upstream resolvers and enable appropriate ad-blocking lists. Implement conditional forwarding within Pi-hole for `vuv.lab` queries back to the BIND LXC container (192.168.1.10) to ensure robustness, even though the primary flow directs `vuv.lab` queries directly to BIND.
+*   **Data-driven Configuration**: All DNS records for `vuv.lab` (A, PTR, CNAME, etc.), Pi-hole adlists, and upstream DNS settings will be managed as data within YAML files located in the `dns-config/` directory within the Git repository.
+*   **Ansible Roles**: The `dns-configuration` Ansible role will be responsible for applying these data-driven configurations to both BIND (generating and deploying zone files like `lab.vuv.hr.zone`) and Pi-hole (updating settings via its API or configuration files).
+*   **GitOps Workflow**: DNS record management will follow a GitOps approach. Changes to `dns-config/` YAML files will be committed to the Git repository, and subsequent Ansible playbook runs will apply these changes to the live DNS infrastructure.
+*   **Playbook Structure**: Separate Ansible playbooks will be created: one for `dns-infrastructure` deployment (LXC creation, software installation) and another for `dns-configuration` (DNS records, policies, adlists). This aligns with the project's data-driven configuration and GitOps principles.
+
+# Test Strategy:
+1.  **LXC Container Verification**: Confirm that both the BIND and Pi-hole LXC containers are running on Proxmox and are accessible via their assigned IP addresses (192.168.1.10 and 192.168.1.11).
+2.  **Service Status**: Verify that the BIND9 service is active and listening within its container, and the Pi-hole service (dnsmasq/FTL) is active and listening within its container.
+3.  **Internal DNS Resolution (BIND)**: From a provisioned lab VM, perform `dig @192.168.1.10 host.vuv.lab` for a known internal record (e.g., `server1.vuv.lab`) to confirm BIND's authoritative resolution.
+4.  **Full DNS Flow Verification**: Configure a test lab VM to use 192.168.1.10 as its primary DNS server. Perform `dig example.com` (a non-`vuv.lab` domain) and verify successful resolution, ensuring the query path (Lab VM → BIND → Pi-hole → CARNet DNS) is followed by inspecting DNS query logs on BIND and Pi-hole.
+5.  **Ad-blocking Functionality**: From the test lab VM, perform `dig ad.doubleclick.net` or similar known ad-serving domains and verify that Pi-hole successfully blocks the resolution (e.g., returns 0.0.0.0 or NXDOMAIN).
+6.  **GitOps Record Update**: Modify an existing DNS record or add a new A record (e.g., `test.vuv.lab`) in the `dns-config/` YAML files, commit the change to Git, and execute the `dns-configuration` Ansible playbook. Verify the change is reflected by performing a `dig test.vuv.lab` from a lab VM.
